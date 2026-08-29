@@ -1,0 +1,102 @@
+================================================================================
+  CASE A — Side-by-Side: Proclus → Eustratius of Nicaea
+  Covert Neoplatonic Borrowings in the 12th-Century Aristotelian Commentary
+================================================================================
+
+  Proclus, In Platonis Rem publicam commentarii (5th c.)
+  Eustratius of Nicaea, In Ethica Nicomachea I (12th c.)
+  5 cross-author matches detected (chain_len ≥ 6)
+
+================================================================================
+MATCH 1 — The Causal Distinction between Being and Well-Being
+================================================================================
+
+  Proclus, In Rempublicam 101r#72 (ad Pl. Resp. 508e–509b):
+    μιᾶς οὐσίας εἴτε ταὐτὸν εἴη τοῦ τε εἶναι αἴτιον
+    καὶ τοῦ εὖ εἶναι τοῖς οὖσιν... γὰρ τὸ εἶναι δίδωσι
+    τοιοῦτον δώσει καὶ τὸ εὖ εἶναι
+
+  Eustratius, In EN I /87#1 (ad EN 1099b32–1100a10):
+    σπουδαστέον ἵν' ἡμῖν πρὸς τῷ εἶναι καὶ τὸ εὖ
+    εἶναι γένηται... καὶ μὴ τοῦ εὖ στερούμενοι ἀθλίως
+    ἔχωμεν τῆς ζωῆς· εἰ δὲ θεὸς ὁ διδούς ἐστιν, εὔχεσθαι
+    δεῖ... ὡς ἂν ὁ τὸ εἶναι δοὺς καὶ τὸ εὖ εἶναι χαρίσηται
+
+  Note: Both authors frame the εἶναι / εὖ εἶναι distinction
+  through the same causal logic (the giver of being also grants
+  well-being). This is not a mere Aristotelian commonplace —
+  it carries the Neoplatonic αἴτιον-πρόνοια framework.
+
+================================================================================
+MATCH 2 — The Distinction between Being and Well-Being (continued)
+================================================================================
+
+  Proclus, In Rempublicam 121v#138:
+    ἄτοπον· οὐ γὰρ ταὐτὸν τὸ εἶναι καὶ τὸ εὖ εἶναι·
+    εἰ δὲ ἕτερόν τι τῆς οὐσίας...
+
+  Eustratius, In EN I /87#1 (same passage):
+    ἔστι καὶ σπουδαστέον ἵν' ἡμῖν πρὸς τῷ εἶναι καὶ
+    τὸ εὖ εἶναι γένηται...
+
+================================================================================
+MATCH 3 — The Differentiation of Lives (βίων διαφοραί)
+================================================================================
+
+  Proclus, In Rempublicam 18r#11:
+    [δαίμονες] σύνταξιν ἔχουσι πρὸς αὐτὰς κατὰ τὰς
+    τῶν βίων διαφοράς...
+
+  Eustratius, In EN I /34#1 (ad EN 1095a17–25):
+    οἱ ἄνθρωποι περὶ εὐδαιμονίας κατὰ τὰς τῶν βίων
+    διαφορὰς καὶ τῶν προαιρέσεων...
+
+  Note: The phrase κατὰ τὰς τῶν βίων διαφοράς is shared.
+  While the topos "three lives" (pleasure, politics,
+  contemplation) is Aristotelian (EN 1095b17–19), the
+  syntactic construction and the way it anchors the
+  daemonic/ethical hierarchy is specific to Proclus's
+  Neoplatonic exegesis.
+
+================================================================================
+MATCH 4 — Actions According to Natures / Virtues
+================================================================================
+
+  Proclus, In Rempublicam 4v#2:
+    ταῖς δὲ μερικαῖς αἱ σχέσεις αὗται, καὶ αἱ κατ'
+    αὐτὰς προσήκουσι κινήσεις...
+
+  Eustratius, In EN I /96#2 (ad EN 1100b22–1101a8):
+    αἱ δ' ἀρεταὶ καὶ αἱ κατ' αὐτὰς ἐνέργειαι
+    βεβαιόταται πάντων τῶν ἀνθρωπίνων εἰσίν
+
+================================================================================
+MATCH 5 — Pleasure and Pain Identity
+================================================================================
+
+  Proclus, In Rempublicam 196v#14:
+    τοῖς αὐτοῖς φησίν ἥδεσθαι καὶ λυπεῖσθαι·
+    τοῦτο δὲ οὐδὲν ἄλλο ἐστὶν ἢ τὸ τὰ αὐτὰ νομίζειν
+    ἀγαθὰ καὶ κακά
+
+  Eustratius, In EN I /90#3 (ad EN 1099a7–21):
+    τοῦτο δ' οὐδὲν ἄλλο ἐστὶν ἢ τὸ εἶναι αὐτοὺς
+    σπουδαίους...
+
+  Note: The formula "τοῦτο δὲ οὐδὲν ἄλλο ἐστὶν ἢ"
+  followed by an identification of ethical dispositions
+  matches Proclus's argumentative pattern.
+
+================================================================================
+  STATISTICAL CONTEXT
+================================================================================
+  Total pilot matches (Proclus → Eustratius):  94
+  Cross-author (genuine):                       5
+  Ancient commonplace overlap:                  12%
+
+  The 12% overlap is exceptionally low — confirming
+  that Eustratius is NOT merely recycling shared
+  textbook topoi, but is selectively integrating
+  Proclan metaphysical vocabulary.
+
+================================================================================

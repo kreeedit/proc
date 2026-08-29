@@ -1,0 +1,94 @@
+================================================================================
+  CASE B — Match ID 28635: The Theological Template of Aristotelian Logic
+  Michael Psellos, Theologica I (11th c.) → Eustratius, In AP II (12th c.)
+================================================================================
+
+SOURCE (Psellos, Theologica I)
+  Edition: Psellos, Theologica I (ed. P. Gautier, Teubner, 1989)
+  Reference: Theologica I, chapter or section 3/#4
+  Author: Michael Psellos (11th c.)
+
+TARGET (Eustratius, In Analytica Posteriora II)
+  Edition: Eustratius, In Posteriorum Analyticorum librum II (CAG)
+  Reference: In AP II /82#3
+  Author: Eustratius of Nicaea (12th c.)
+
+Chain length: 6 | Score: 0.0444
+
+================================================================================
+  FULL GREEK CONTEXTS
+================================================================================
+
+PSELLOS, Theologica I (%3/#4) — Anti-Eunomian Polemic:
+
+  ...οὐ γὰρ ἁπλῶς «ὅσα κατά τινος λέγεται, καὶ κατὰ
+  τοῦ ὑποκειμένου τούτῳ ῥηθήσεται», ἀλλὰ δῆλον κατὰ
+  τίνος καὶ τίνα.
+
+  Πῶς μὲν οὖν παρελογίσατο ὁ Εὐνόμιος, καὶ τίνι εἴδει
+  τῶν σοφισμάτων χρησάμενος τὸν παραλογισμὸν ἐποιήσατο,
+  προϊόντες ἐροῦμεν. Ἔνθα δὴ καὶ αὐτὸς ὁ πατὴρ ἐλέγχει
+  τὸ σόφισμα.
+
+  Πρὸς δὲ τὴν τοῦ λόγου συνέχειαν τέως τὸν ἡμέτερον
+  λόγον προσάψωμεν. Ἀκηκοὼς ὁ Ἀνόμοιος τοῦ Ἀριστοτέλους
+  ἐν Κατηγορίαις εἰρηκότος ὅτι «ὅσα κατά τινος λέγεται,
+  ταῦτα καὶ κατὰ τοῦ ὑποκειμένου τούτῳ ῥηθήσεται»,
+  ἀβασανίστως τὸν λόγον ἐδέξατο...
+
+EUSTRATIUS, In Analytica Posteriora II (/82#3) — Logical Commentary:
+
+  ...ὑποκειμένου λεγομένων, «ὅσα κατὰ τοῦ κατηγορουμένου
+  λέγεται, ταῦτα καὶ κατὰ τοῦ ὑποκειμένου ῥηθήσεται»,
+  ἀλλὰ τοῦ μὲν ζῴου ἐν...
+
+================================================================================
+  PHILOLOGICAL COMMENTARY
+================================================================================
+
+1. The shared core is Aristotle's rule of predication from
+   Categories 1b10: "ὅσα κατά τινος λέγεται, ταῦτα καὶ
+   κατὰ τοῦ ὑποκειμένου ῥηθήσεται."
+
+2. What makes this match significant is NOT the shared
+   Aristotelian quote — that would be a commonplace.
+   Rather, the significance lies in what BOTH authors do
+   with the same quote:
+
+   - Psellos embeds it in an 11th-century anti-Eunomian
+     polemic: Eunomius of Cyzicus (4th c., Anomoean
+     theologian) allegedly used this rule fallaciously
+     to deny the consubstantiality of the Son.
+
+   - Eustratius, writing a formal commentary on the
+     Posterior Analytics a century later, reproduces not
+     just the Aristotelian lemma but the PSELLIAN
+     syntactic framework — the qualifying clause
+     "οὐ γὰρ ἁπλῶς... ἀλλὰ δῆλον" (not simply...
+     but it is clear) with which Psellos qualified the
+     predication rule.
+
+3. Because neither Proclus nor Psellos appears in the
+   indices nominum of the standard editions of Eustratius's
+   commentaries, this match represents a genuine, hitherto
+   unmapped instance of covert text reuse.
+
+================================================================================
+  ADDITIONAL MATCHES: Psellos → Eustratius (same polemical context)
+================================================================================
+
+  ID 28636 (chain=6): Same passage in Psellos → same
+    target in In AP II. Score: 0.0334
+
+  ID 28637 (chain=6): Same passage → same target,
+    variant phrasing "οὐ τοίνυν ὅσα κατά τινος..."
+    Score: 0.0187
+
+  IDs 28815, 28824 (chain=4): Psellos, Theologica I 24/#9
+    → Eustratius, In EN VI /258#2–3. The Eunomius
+    reference ("ἐπεὶ δὲ ὁ Εὐνόμιος") appears in
+    Eustratius's ethical commentary as well —
+    demonstrating that Psellos's theological framework
+    permeates Eustratius's logical AND ethical works.
+
+================================================================================

@@ -1,0 +1,6 @@
+#	work_i	author_i	title_i	ref_i	work_j	author_j	title_j	ref_j	chain_len	matches_words	score	shared_formula
+1	tlg4036.tlg001	Proclus	In Rempublicam	101r#72	4031.002	Eustratius of Nicaea	In Ethica Nicomachea I	/87#1	6	10	0.0	τὸ εἶναι καὶ τὸ εὖ εἶναι / αἴτιον-logic
+2	tlg4036.tlg001	Proclus	In Rempublicam	121v#138	4031.002	Eustratius of Nicaea	In Ethica Nicomachea I	/87#1	6	6	0.0	τὸ εἶναι καὶ τὸ εὖ εἶναι (reprise)
+3	tlg4036.tlg001	Proclus	In Rempublicam	18r#11	4031.002	Eustratius of Nicaea	In Ethica Nicomachea I	/34#1	6	6	0.0098	κατὰ τὰς τῶν βίων διαφοράς (life-differentiation)
+4	tlg4036.tlg001	Proclus	In Rempublicam	4v#2	4031.002	Eustratius of Nicaea	In Ethica Nicomachea I	/96#2	6	6	0.0	αἱ κατ' αὐτὰς ἐνέργειαι (actions according to natures)
+5	tlg4036.tlg001	Proclus	In Rempublicam	196v#14	4031.002	Eustratius of Nicaea	In Ethica Nicomachea I	/90#3	6	6	0.0137	τοῦτο δὲ οὐδὲν ἄλλο ἐστὶν ἢ (identification formula)

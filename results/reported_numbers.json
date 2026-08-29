@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "generated_at": "2026-08-29T07:17:20.380145",
+    "ndjson_hash": "dc168b1017fb4ab4",
+    "filter_hash": "69b1f3462c91c323"
+  },
+  "section_4_3_raw_matches": {
+    "total": 35753,
+    "byz_anc": 6426,
+    "byz_byz_same_author": 6273,
+    "byz_byz_diff_author": 23054,
+    "byz_byz_total": 29327,
+    "num_pairs": 406,
+    "num_works": 29
+  },
+  "section_5_2_topos_exclusion_matrix": {
+    "predicate": "byz_byz_tagged.tag == 'ancient_commonplace' on full BYZ-BYZ (29,327)",
+    "byz_byz_evaluated": 29327,
+    "ancient_control_works": {
+      "tlg0059.tlg030": {
+        "author": "Plato",
+        "title": "Respublica (Politeia)"
+      },
+      "tlg0086.tlg010": {
+        "author": "Aristotle",
+        "title": "Ethica Nicomachea"
+      },
+      "tlg4036.tlg001": {
+        "author": "Proclus",
+        "title": "In Platonis Rem publicam commentarii"
+      }
+    },
+    "tagged_commonplace_total": 11487,
+    "tagged_commonplace_same_author": 2235,
+    "tagged_commonplace_diff_author": 9252,
+    "commonplace_pct_of_byz_byz": 39.2,
+    "commonplace_pct_of_diff_author": 40.1,
+    "tag_origin_breakdown": {
+      "work_i": 5453,
+      "work_j": 6034
+    },
+    "clean_byz_byz_same_author": 4038,
+    "clean_byz_byz_diff_author": 13802,
+    "clean_byz_byz_total": 17840,
+    "byz_anc_control_matches": 6426,
+    "total_clean_remainder": 24266
+  },
+  "section_6_work_packages": {
+    "wp1_implicit": {
+      "total": 7
+    },
+    "wp2_canon": {
+      "total": 14
+    },
+    "wp3_explicit": {
+      "total": 678
+    },
+    "wp4_synthesis": {
+      "total": 4561,
+      "byz_anc_in_wp4": 1405,
+      "byz_anc_ancient_ancient": 163,
+      "byz_byz_noncommonplace": 2279,
+      "byz_byz_tagged_retained": 877
+    },
+    "total_clean": 5260,
+    "wp1_3_base_counts": {
+      "ancient_classical↔7th_8th": 831,
+      "ancient_classical↔9th_10th": 663,
+      "ancient_classical↔11th_12th": 4467
+    },
+    "wp4_pipeline_predicate": "filter_by_wp.py: raw_tagged_tsv → cross-author → chain≥6 → no tag filter (retains ancient_commonplace) → no era filter except ¬ancient×ancient"
+  },
+  "section_7_1_sampling": {
+    "predicate": "Sampling population = clean BYZ-BYZ diff-author only (author_i != author_j, tag ≠ ancient_commonplace) + BYZ-ANC. Same-author clean matches excluded a priori.",
+    "clean_remainder_population_total": 24266,
+    "clean_remainder_same_author_included": 4038,
+    "sampling_population_excluding_self_matches": 20228,
+    "excluded_population": 11487,
+    "excluded_population_diff_author_only": 9252,
+    "total_population": 35753,
+    "clean_sample_size": 200,
+    "excluded_sample_size": 100,
+    "total_sample_size": 300
+  },
+  "section_8_2_chain_distribution": {
+    "predicate": "diff-author BYZ-BYZ matches only (author_i != author_j, neither side in ANCIENT_WORKS)",
+    "total": 23054,
+    "lt_6": 19898,
+    "gte_6": 3156,
+    "pct_lt_6": 86.3
+  },
+  "appendix_wp4_composition": {
+    "predicate": "WP4 TSV breakdown: BYZ-ANC vs BYZ-BYZ (non-commonplace + tagged retained)",
+    "wp4_total": 4561,
+    "wp4_byz_anc": 1405,
+    "wp4_byz_anc_ancient_ancient": 163,
+    "wp4_byz_byz_non_commonplace": 2279,
+    "wp4_byz_byz_tagged_retained": 877,
+    "wp4_byz_byz_total": 3156,
+    "crosscheck_raw_chain_gte6": 3156
+  }
+}
