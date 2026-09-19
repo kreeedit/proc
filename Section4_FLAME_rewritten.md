@@ -9,7 +9,7 @@
 >
 > Every claim here is measured against `engine/flame/flame_pure.py` as shipped
 > and against `logs/text_reuse_matches.ndjson` as released; the measurements are
-> listed in [`../AUDIT.md`](../AUDIT.md) and locked by `tests/test_flame.py`.
+> listed in [`AUDIT.md`](AUDIT.md) and locked by `tests/test_flame.py`.
 >
 > The later, unshipped `..._v0.4.md:118` fork disclaimer is **inverted** and
 > should be deleted rather than edited: it says the fork's Phase 2 "uses

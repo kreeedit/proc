@@ -9,37 +9,38 @@ Measured against **`engine/flame/flame_pure.py` exactly as released**
 Nothing in `engine/flame/flame_pure.py`, `engine/flame/bpe_pure.py`,
 `engine/data/bpe_vocab.json` or `engine/LICENSE` was modified; `sha256sum -c
 engine/MANIFEST.sha256` still passes on all 12 listed files, and
-`tests/test_flame.py::TestDocstringFork::test_frozen_files_are_untouched`
-asserts it.
+`tests/test_flame.py::TestFrozenFiles` asserts it.
 
 Every finding below is reproduced by `python3 -m unittest discover -s tests`
-(47 tests, ~60 s, standard library only).
+(49 tests, ~45 s, standard library only).
 
-> **Fix status (added after the first pass).** Findings 1, 4, 5, 11, 12, 14 and
-> 15 are now **implemented** in a parallel `_v2` pipeline —
-> `engine/flame/flame_pure_v2.py`, `engine/flame/bpe_pure_v2.py`,
-> `scripts/find_text_reuse_v2.py`, `scripts/filter_by_wp_v2.py`,
-> `scripts/demo_v2.py`. See [`PIPELINE_V2.md`](PIPELINE_V2.md) for how to run it
-> and what each fix cost. The frozen pipeline is untouched and still produces
-> the reported numbers; the v2 pipeline writes to `logs/v2/` and
-> `logs/clean_by_wp_v2/`. The paper's figures move only when the 406-pair sweep
-> is re-run with it, which needs the corpus that is not in this release.
+> **Fix status.** Findings 1, 4, 5, 11, 12, 14 and 15 are **implemented** in a
+> parallel `_v2` pipeline — `engine/flame/flame_pure_v2.py`,
+> `engine/flame/bpe_pure_v2.py`, `scripts/find_text_reuse_v2.py`,
+> `scripts/filter_by_wp_v2.py`, `scripts/demo_v2.py`. See
+> [`PIPELINE_V2.md`](PIPELINE_V2.md) for how to run it and what each fix cost.
+> The frozen pipeline is untouched and still produces the reported numbers; the
+> v2 pipeline writes to `logs/v2/` and `logs/clean_by_wp_v2/`. The paper's
+> figures move only when the 406-pair sweep is re-run with it, which needs the
+> corpus that is not in this release.
 >
-> **Documentation edited 2026-09-19.** `README.md` and `engine/README.md` carried
-> statements this audit falsified (findings 1, 2, 12 and the "single chain of 57"
-> figure); they are corrected in place and marked *(corrected 2026-09-19)*. Both
-> `MANIFEST.sha256` files were regenerated — same file lists, exactly one changed
-> hash each. Pre-edit values, for audit:
+> **Documentation.** `engine/README.md` was rewritten as the package's primary
+> description, incorporating the corrected facts rather than annotating the old
+> text with errata; `README.md` gained an audit note and a summary of the limits
+> of the reported run. The manuscript drafts under `docs/` are no longer tracked
+> (`.gitignore`), and the replacement §4 moved to
+> [`Section4_FLAME_rewritten.md`](Section4_FLAME_rewritten.md) with the first-pass
+> patches under [`patches/`](patches/). Both `MANIFEST.sha256` files were
+> regenerated. Pre-audit values, for reference:
 >
-> | file | before | after |
+> | file | before the audit | now |
 > |---|---|---|
-> | `README.md` | `112f57b696396ada…` | `6830625c9bdeeba4…` |
-> | `engine/README.md` | `fa0bdecaf613bf76…` | `823c0e115c8b0496…` |
-> | `MANIFEST.sha256` | `7e2dc7ff6db51901…` | regenerated (31 files, 1 hash changed) |
-> | `engine/MANIFEST.sha256` | `334f358bab2e103c…` | regenerated (12 files, 1 hash changed) |
+> | `README.md` | `112f57b696396ada…` | rewritten section appended |
+> | `engine/README.md` | `fa0bdecaf613bf76…` | rewritten |
+> | `MANIFEST.sha256` | `7e2dc7ff6db51901…` | regenerated: 31 → 28 entries (the three `docs/` files dropped) |
+> | `engine/MANIFEST.sha256` | `334f358bab2e103c…` | regenerated: same 12 entries, one changed hash |
 >
-> No data file, no result file and no paper draft was edited. The replacement §4
-> still sits beside the drafts rather than over them.
+> No data file and no result file was edited.
 
 ---
 
@@ -212,24 +213,24 @@ bucket (needs `corpus_manifest.yaml`).
   auto-threshold). *In the second pass this file became the fixed engine as
   well — see "Implemented" above. It is still not imported by anything in the
   release: `demo.py` and both harness copies load `flame_pure`.*
-* **`docs/Section4_FLAME_rewritten.md`** — §4 rewritten from the measured
+* **`Section4_FLAME_rewritten.md`** — §4 rewritten from the measured
   behaviour, placed beside the old text, not over it.
 
 ### The first pass's patch set — now superseded
 
-The diffs in `docs/patches/` were written before the fixes were implemented.
+The diffs in `patches/` were written before the fixes were implemented.
 They are kept because each is a minimal, reviewable statement of one change, and
 because two of them record an option the implementation did **not** take. Where
 a patch and the v2 pipeline disagree, the v2 pipeline is the measured answer —
 in particular **C1's `min(n1,n2)` symmetrization was rejected**: it is
 direction-free but drops 44–76% of candidates, where the implemented
-per-side-cap version drops none. See `docs/patches/README.md`.
+per-side-cap version drops none. See `patches/README.md`.
 
 ### Proposed, not applied — class B (additive)
 
 | patch | what it does | impact |
 |---|---|---|
-| `docs/patches/B2_B3_run_provenance_and_warnings.patch` | (B2) writes a `text_reuse_matches.meta.json` sidecar carrying the effective parameters, `bpe_trained`, `max_candidates`, the engine's sha256 and the corpus ref; (B3) prints a warning when a parameter was silently clamped or the BPE model is missing. Against `engine/find_text_reuse.py`; parses clean. | **zero** on existing records and fields. Would have made finding 2 unnecessary. |
+| `patches/B2_B3_run_provenance_and_warnings.patch` | (B2) writes a `text_reuse_matches.meta.json` sidecar carrying the effective parameters, `bpe_trained`, `max_candidates`, the engine's sha256 and the corpus ref; (B3) prints a warning when a parameter was silently clamped or the BPE model is missing. Against `engine/find_text_reuse.py`; parses clean. | **zero** on existing records and fields. Would have made finding 2 unnecessary. |
 | B1 — backport `matched_words_j` to `scripts/find_text_reuse.py` | The engine already returns `matched_j`; `engine/find_text_reuse.py` already counts it, `scripts/find_text_reuse.py` does not. | zero on existing records; new runs gain a per-side count. **Touches the release-frozen script** (`6556013`) → decision, not a commit. |
 | B4 — `bpe_pure` load-order fix (finding 15) | Move `load()` above the `ranks = …` line. | zero in the production path. Must go to a `bpe_pure_v2.py`, since `bpe_pure.py` is byte-frozen. |
 | ~~B5 — `_hashes` precomputed powers~~ | **Withdrawn.** Measured at 0.92×–1.15×: there is no speed-up to collect (finding 16). | — |
@@ -238,9 +239,9 @@ per-side-cap version drops none. See `docs/patches/README.md`.
 
 | patch | what it does | measured impact |
 |---|---|---|
-| `docs/patches/C1_df_cap_symmetric.patch` | Caps bigram document frequency on **both** sides and sizes the cap from `min(n1,n2)`, so `compare(A,B) == compare(B,A)`. | **Works**: Jaccard forward↔reverse goes 0.264/0.310/0.309 → **1.0000** on all three real pairs, with shared counts agreeing exactly. **But it costs recall**: candidates drop 3,617→2,013 (−44%), 6,707→2,452 (−63%), 11,574→2,783 (−76%); nothing is gained. The alternative symmetrization — take the **union** of both directions — is also direction-free and goes the other way: 9,506 (+163%), 10,318 (+54%), 15,448 (+33%). Choosing between them is a recall/precision decision, not a bug fix. Either way: **re-run of the full sweep**. |
-| `docs/patches/C2_strip_apparatus_tokens.patch` | Drops bare numerals and Latin-script tokens from segments that are majority-Greek, inside `_clean_text()`. | On the demo pair: Proclus windows **95 → 92** (−434 words, −3.3%), records **5 → 6**, and **every `#k` label shifts** (`#65`→`#63`, `#36`→`#35`). `598/#1` rises from **90 → 104 matched words** and **0.4373 → 0.5708** — close to the README's hand-stripped 103 / 0.5684, independently corroborating it. Invalidates every positional reference in the current results. Belongs in the corpus builder if the apparatus column is still separable there. |
-| `docs/patches/C5_score_gate_not_cross_pair.patch` | Replaces the absolute `score >= score_min` in `filter_by_wp.py` with a within-work-pair percentile, so the gate is scale-free. Three options are documented in the patch: (1) drop the gate → **WP1 = 19, WP2 = 33, WP3 = 693**; (2) percentile (implemented); (3) recompute `score` with a corpus-level IDF → full re-run. | **WP1 7 → up to 19, WP2 14 → up to 33, WP3 678 → up to 693**, hence the pipeline total **5,260** moves. Option (1) needs no re-run — it is a re-filter of the shipped NDJSON. Options (2)/(3) change the definition and must be argued in §5, not patched in. |
+| `patches/C1_df_cap_symmetric.patch` | Caps bigram document frequency on **both** sides and sizes the cap from `min(n1,n2)`, so `compare(A,B) == compare(B,A)`. | **Works**: Jaccard forward↔reverse goes 0.264/0.310/0.309 → **1.0000** on all three real pairs, with shared counts agreeing exactly. **But it costs recall**: candidates drop 3,617→2,013 (−44%), 6,707→2,452 (−63%), 11,574→2,783 (−76%); nothing is gained. The alternative symmetrization — take the **union** of both directions — is also direction-free and goes the other way: 9,506 (+163%), 10,318 (+54%), 15,448 (+33%). Choosing between them is a recall/precision decision, not a bug fix. Either way: **re-run of the full sweep**. |
+| `patches/C2_strip_apparatus_tokens.patch` | Drops bare numerals and Latin-script tokens from segments that are majority-Greek, inside `_clean_text()`. | On the demo pair: Proclus windows **95 → 92** (−434 words, −3.3%), records **5 → 6**, and **every `#k` label shifts** (`#65`→`#63`, `#36`→`#35`). `598/#1` rises from **90 → 104 matched words** and **0.4373 → 0.5708** — close to the README's hand-stripped 103 / 0.5684, independently corroborating it. Invalidates every positional reference in the current results. Belongs in the corpus builder if the apparatus column is still separable there. |
+| `patches/C5_score_gate_not_cross_pair.patch` | Replaces the absolute `score >= score_min` in `filter_by_wp.py` with a within-work-pair percentile, so the gate is scale-free. Three options are documented in the patch: (1) drop the gate → **WP1 = 19, WP2 = 33, WP3 = 693**; (2) percentile (implemented); (3) recompute `score` with a corpus-level IDF → full re-run. | **WP1 7 → up to 19, WP2 14 → up to 33, WP3 678 → up to 693**, hence the pipeline total **5,260** moves. Option (1) needs no re-run — it is a re-filter of the shipped NDJSON. Options (2)/(3) change the definition and must be argued in §5, not patched in. |
 | C3 — apparatus strip in the corpus builder | Not patchable from this release: `build_corpus.py` / `convert_raw_tlg_to_corpus.py` are deliberately excluded. | Superset of C2's effect; the right place for it. |
 | C4 — split `ancient_classical` | Not patchable from this release: `corpus_manifest.yaml` is not shipped. Touches the manifest, `ERA_RANK`/`ALL_ERAS` and every era-pair figure in §5. | Every era-layer table. The Plato (4th c. BC) × Proclus (5th c. AD) pair is currently reported as same-layer, ~900 years apart. |
 

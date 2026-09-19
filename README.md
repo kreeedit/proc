@@ -4,21 +4,24 @@ Companion material for the DH paper draft
 *"Eustratius' Implicit Authority in the Twelfth-Century Aristotelian Commentary"*
 (the pilot case studies on Proclus → Eustratius and Psellos → Eustratius).
 
-> **Audited 2026-09-19 — read this before citing a number.** The engine was
-> audited against the shipped code and the shipped match data. Sixteen findings,
-> each with its measurement, are in [`AUDIT.md`](AUDIT.md); the ones that reach
-> into the paper are summarised under [Known limits of the reported
-> run](#known-limits-of-the-reported-run) below. The fixes are implemented as a
-> parallel `_v2` pipeline described in [`PIPELINE_V2.md`](PIPELINE_V2.md), and a
-> replacement §4 written from the measured behaviour is at
-> [`docs/Section4_FLAME_rewritten.md`](docs/Section4_FLAME_rewritten.md).
+> **Audited 19 September 2026. This note should be read before any figure below
+> is cited.** The engine was audited against the shipped code and the shipped
+> match data. Sixteen findings, each with the measurement that establishes it,
+> are recorded in [`AUDIT.md`](AUDIT.md); those that bear on the reported
+> figures are summarised under [Limitations of the reported
+> run](#limitations-of-the-reported-run). The authoritative description of the
+> matching procedure is [`engine/README.md`](engine/README.md); remedies are
+> implemented in a parallel pipeline documented in
+> [`PIPELINE_V2.md`](PIPELINE_V2.md), and a replacement for §4 of the manuscript
+> is provided as
+> [`Section4_FLAME_rewritten.md`](Section4_FLAME_rewritten.md).
 >
-> **Nothing here changed behaviour.** The engine is still byte-identical to its
-> KONI source, `python3 engine/demo.py` still reproduces the chain-53 anchor,
-> `python3 scripts/compute_reported_numbers.py` still produces the shipped
-> figures, and no released artefact was rewritten. Only prose in this file and
-> in `engine/README.md` was edited; both `MANIFEST.sha256` files were
-> regenerated accordingly, with the pre-edit hashes recorded in `AUDIT.md`.
+> **No behaviour was altered.** The engine remains byte-identical to its source,
+> `python3 engine/demo.py` still reproduces the chain-53 anchor,
+> `python3 scripts/compute_reported_numbers.py` still yields the shipped
+> figures, and no released artefact was rewritten. Only documentation was
+> edited; both `MANIFEST.sha256` files were regenerated accordingly and the
+> pre-audit hashes are recorded in `AUDIT.md`.
 
 This directory bundles the **analysis pipeline code**, the **results the paper cites**, and the
 **match data** needed to reproduce every number. It does **not** contain the *source-corpus
@@ -34,21 +37,33 @@ reads.
 ```
 paper_release/
 ├── README.md                      this file
+├── AUDIT.md                       the 2026-09-19 audit: findings and measurements
+├── PIPELINE_V2.md                 the corrected pipeline
+├── Section4_FLAME_rewritten.md    a replacement for §4 of the manuscript
+├── engine/                        the matching engine and its documentation
+│   ├── README.md                     the authoritative description of the method
+│   ├── demo.py                       a runnable verification on redistributable text
+│   ├── flame/flame_pure.py           the engine that produced the reported matches
+│   └── flame/flame_pure_v2.py        the corrected engine
 ├── scripts/                       analysis pipeline (Python, stdlib only)
+│   └── *_v2.py                       the corrected harness, filter and demonstration
+├── tests/                         behavioural tests and the audit's measurement scripts
 ├── logs/                          input data for compute_reported_numbers.py
 │   ├── text_reuse_matches.ndjson     35,753 raw matches (the sweep output)
 │   ├── overlap_filter_global/byz_byz_tagged.{ndjson,tsv}
-│   └── clean_by_wp/                  work-package candidate sets (§5.3/§6)
-├── results/
-│   ├── reported_numbers.json      machine-checked numbers for the paper (generated)
-│   ├── compare_controls.md        control-corpus comparison (III/6 demo)
-│   ├── filter_reports/            Topos Exclusion Matrix reports per control
-│   └── case_studies/              Case A (Proclus) & Case B (Psellos) artefacts (§6)
-└── docs/
-    ├── Eustratius_Implicit_Authority_Paper_Draft.md   the paper draft
-    ├── Methodology_Section_Pilot.md                   methodology section
-    └── Technical_Corrections_2026-08-07.md            corrections + findings
+│   ├── clean_by_wp/                  work-package candidate sets (§5.3/§6)
+│   └── clean_by_wp_v2/               the same sets without the cross-pair score gate
+├── patches/                       first-pass audit diffs, superseded by the v2 pipeline
+└── results/
+    ├── reported_numbers.json      machine-checked numbers for the paper (generated)
+    ├── compare_controls.md        control-corpus comparison (III/6 demo)
+    ├── filter_reports/            Topos Exclusion Matrix reports per control
+    └── case_studies/              Case A (Proclus) & Case B (Psellos) artefacts (§6)
 ```
+
+The manuscript drafts and the technical-correction notes are kept under `docs/`
+in the working tree but are **not part of this archive** and are excluded from
+version control; the archive ships code, data and the documentation of both.
 
 ---
 
@@ -91,6 +106,11 @@ cross-check ✓).
 **Input hashes of the generating run:** see `results/reported_numbers.json` → `metadata`
 (`ndjson_hash = dc168b1017fb4ab4`, `filter_hash = 69b1f3462c91c323`).
 
+References below to `Technical_Corrections_2026-08-07.md` and
+`Reply_to_Jonathan_2026-08-29.md` are to working documents that are not part of this
+archive; they are cited for provenance only, and every figure they contain is
+recomputable from the shipped data by `compute_reported_numbers.py`.
+
 ---
 
 ## Provenance notes that matter for the paper
@@ -110,42 +130,51 @@ cross-check ✓).
 
 ---
 
-## Known limits of the reported run
+## Limitations of the reported run
 
-From the 2026-09-19 audit ([`AUDIT.md`](AUDIT.md)). Each item is measured, not
-inferred; each is fixed in the v2 pipeline but **not** in the reported run,
-because fixing it there means re-running the sweep.
+The following are established by measurement, not by inspection, in the audit
+of 19 September 2026 ([`AUDIT.md`](AUDIT.md)). Each is remedied in the
+corrected pipeline but not in the reported run, since remedying it there
+requires the sweep to be repeated.
 
-- **`max_candidates` was 1000**, recoverable from the artefact itself:
-  records-per-work-pair tops out at exactly 1000 and the saturated pair's chain
-  lengths start at 19 where unsaturated pairs are dominated by chain 4–8. On
-  work pairs the size of this corpus's largest, the candidate sets run to
-  3,617–11,574, so a cap of 1000 retains 9–28% of them. The cap is a recall
-  parameter and belongs in any citation of the run.
-- **Candidate retrieval was directional.** `compare(A, B) ≠ compare(B, A)`:
-  measured 304 vs 515 records on one real pair, 6 vs 12 at `chain ≥ 6`. The
-  sweep's `i < j` enumeration fixed one direction per pair. Records found in
-  both directions are identical, so this is a recall effect only.
-- **`score` is normalized per work pair and must not be compared across them.**
-  `scripts/filter_by_wp.py` nonetheless applies absolute gates: they drop 12 of
-  WP1's 19 chain-≥6 candidates and 19 of WP2's 33, so the reported **7** and
-  **14** are mostly the gate's doing. Without the gate the same criteria select
-  19 / 33 / 693 (see `logs/clean_by_wp_v2/wp_delta_report.md`).
-  `compute_reported_numbers.py` itself never reads `score`.
-- **The Proclus text carries its critical apparatus inline.** After cleaning,
-  2.4% of its tokens are bare numerals and 4.4% are Latin-script, and the
-  matching threshold pairs numerals with each other.
-- **`ancient_classical` is one era bucket** spanning Plato to Proclus, ~900
-  years, so era-layer tables read those as a same-layer match.
+**The candidate cap was 1,000, and it is a recall parameter.** The value is
+recoverable from the released data: the number of records per work pair attains
+exactly 1,000 and never exceeds it, and the saturated pair's chain lengths begin
+at 19 where unsaturated pairs are dominated by chains of 4 to 8. On work pairs
+of a size comparable to this corpus's largest, candidate sets range from 3,617
+to 11,574, so a cap of 1,000 retains between 9% and 28% of them. The value
+should accompany any citation of the run.
 
-What the audit found *sound*: the matching itself. On the demo pair 201 of 213
-matched word pairs are string-identical and the fuzzy remainder is almost all
-genuine morphological variation; the precision comes from the `core >= ngram`
-filter. The length prune never rejects a pair that would pass (20,000 random
-pairs × 5 thresholds, 0 disagreements) and every block is a strictly increasing
-1:1 pairing (78,713 blocks, 0 violations). The engine reports what it finds
-accurately; what is unreliable is what it *fails* to find, and every
-score-derived figure.
+**Candidate retrieval was directional.** `compare(A, B)` and `compare(B, A)`
+return different results: 304 against 515 records on one real pair, and 6
+against 12 at a chain threshold of 6. The sweep's `i < j` enumeration fixed one
+direction per work pair. Records found in both directions are identical in
+every field, so the effect is confined to recall.
+
+**The score is normalised per work pair and cannot be compared across them.**
+`scripts/filter_by_wp.py` nonetheless applies absolute thresholds, which remove
+12 of WP1's 19 chain-≥6 candidates and 19 of WP2's 33. The reported counts of
+**7** and **14** are therefore determined principally by that gate rather than
+by chain length; without it the same criteria select 19, 33 and 693
+respectively (see `logs/clean_by_wp_v2/wp_delta_report.md`).
+`compute_reported_numbers.py` does not read the score.
+
+**The Proclus text carries its critical apparatus inline.** After cleaning,
+2.4% of its tokens are bare numerals and 4.4% are Latin-script, and the
+similarity threshold matches numerals to one another.
+
+**`ancient_classical` is a single era bucket** spanning Plato to Proclus, some
+nine centuries, so era-layer tables report such pairs as same-layer matches.
+
+What the audit found sound is the matching itself. Of 213 matched word pairs in
+the demonstration, 201 are string-identical and the fuzzy remainder is almost
+entirely genuine morphological variation; precision derives from the
+core-length filter rather than from the similarity threshold. The length prune
+never rejects a pair the unpruned predicate would accept (20,000 random pairs
+at five thresholds, no disagreement), and every block is a strictly increasing
+one-to-one pairing (78,713 blocks, no violation). The engine reports what it
+finds accurately. What is unreliable is what it fails to find, together with
+every figure derived from the score.
 
 ## Tests
 

@@ -2,7 +2,7 @@
 
 > **Superseded — read this first.** These diffs were written before the fixes
 > were implemented. The fixes now live in the v2 pipeline
-> ([`../../PIPELINE_V2.md`](../../PIPELINE_V2.md)), which is what to run and
+> ([`../PIPELINE_V2.md`](../PIPELINE_V2.md)), which is what to run and
 > what the tests pin. The patches are kept for two reasons: each is a minimal,
 > reviewable statement of one change, and one of them records an option the
 > implementation **rejected on measurement**.
@@ -17,13 +17,13 @@
 **None of these is applied to the frozen files.** Each one either changes a
 number the paper reports (class C) or touches a file that the release freezes
 (class B against `scripts/find_text_reuse.py`). Findings, measurements and
-impact estimates: [`../../AUDIT.md`](../../AUDIT.md).
+impact estimates: [`../AUDIT.md`](../AUDIT.md).
 
 All four apply cleanly from the repository root:
 
 ```bash
 cd /home/kredit/github/proc
-git apply --check docs/patches/<name>.patch     # verified: all four pass
+git apply --check patches/<name>.patch     # verified: all four pass
 ```
 
 | patch | target | class | consequence |
