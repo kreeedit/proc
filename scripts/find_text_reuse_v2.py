@@ -333,6 +333,19 @@ def main() -> None:
     strip_apparatus = not args.no_apparatus_strip
     corpus_idf = not args.no_corpus_idf
 
+    # A kiadás sem a korpuszt, sem a manifestet nem tartalmazza (TLG-alapú,
+    # nem redisztributálható) — ezt diagnosztizálható üzenetben mondjuk meg,
+    # ne traceback-ben.
+    if not MANIFEST.is_file():
+        raise SystemExit(
+            f"[HIBA] nincs korpusz-manifest: {MANIFEST}\n"
+            f"       Ez a kiadás nem tartalmazza a `corpus_manifest.yaml`-t és a\n"
+            f"       `data/corpus/`-t (TLG-alapú, nem redisztributálható), ezért a\n"
+            f"       teljes sweep innen nem futtatható.\n"
+            f"       Amit futtatni tudsz a csomagolt mintákon:\n"
+            f"         python3 scripts/demo_v2.py       # a javított pipeline\n"
+            f"         python3 engine/demo.py           # a befagyasztott\n"
+            f"       Lásd: PIPELINE_V2.md, AUDIT.md.")
     manifest = H.load_manifest()
     works = H.collect_built_works(manifest, only)
     if len(works) < 2:

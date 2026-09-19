@@ -439,20 +439,34 @@ def build_corpus_index(sections_by_work, ngram: int = NGRAM,
     """
     ngram = max(2, min(8, int(ngram)))
     n_out = max(0, min(2, int(n_out)))
-    works = [_units(s) for s in sections_by_work]
+    # Only the subword lists are kept between the two passes. Materializing a
+    # Counter per unit the way `_idf` does would hold ~600 hashes x every unit
+    # of the corpus at once — several GB on a 29-work sweep — for a result that
+    # is a single document-frequency table.
+    subs_by_unit: list[list[str]] = []
+    n_works = 0
+    for sections in sections_by_work:
+        n_works += 1
+        for _, _, _, subs, _ in _units(sections):
+            subs_by_unit.append(subs)
     vocab: dict[str, int] = {}
-    for w in works:
-        for _, _, _, subs, _ in w:
-            for s in subs:
-                if s not in vocab:
-                    vocab[s] = len(vocab)
+    for subs in subs_by_unit:
+        for s in subs:
+            if s not in vocab:
+                vocab[s] = len(vocab)
     oov = len(vocab)            # reserved id for a subword unseen at build time
     base = len(vocab) + 1       # > every id, exactly as in the per-call path
-    counters = [Counter(_hashes([vocab.get(s, oov) for s in subs],
-                                base, ngram, n_out))
-                for w in works for _, _, _, subs, _ in w]
-    return {"vocab": vocab, "base": base, "oov": oov, "idf": _idf(counters),
-            "n_units": len(counters), "n_works": len(works),
+    # `_idf` counts each hash once per counter that contains it (`for h in c`
+    # walks unique keys), so a set per unit reproduces it exactly — asserted by
+    # tests/test_flame.py::test_corpus_index_idf_matches_the_engines_own.
+    df: Counter = Counter()
+    for subs in subs_by_unit:
+        df.update(set(_hashes([vocab.get(s, oov) for s in subs],
+                              base, ngram, n_out)))
+    n = len(subs_by_unit)
+    idf = {h: math.log(1 + n / (1 + d)) + 1.0 for h, d in df.items()}
+    return {"vocab": vocab, "base": base, "oov": oov, "idf": idf,
+            "n_units": n, "n_works": n_works,
             "ngram": ngram, "n_out": n_out}
 
 

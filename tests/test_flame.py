@@ -770,6 +770,32 @@ class TestFixedFork(_Fixture):
         self.assertEqual(len(corpus), 1, "corpus IDF must not drift")
         self.assertEqual(corpus, {0.3069})
 
+    def test_corpus_index_idf_matches_the_engines_own(self):
+        """`build_corpus_index` streams document frequencies instead of holding
+        a Counter per unit (which would be several GB on a 29-work sweep). It
+        has to produce exactly what `_idf` would have, so the corpus-scoped and
+        call-scoped paths differ only in *scope*, never in formula. Checked on a
+        single work, where the two scopes coincide."""
+        index = self.F2.build_corpus_index([self.u2], ngram=4, n_out=1)
+        units = self.F2._units(self.u2)
+        counters = [Counter(self.F2._hashes(
+            [index["vocab"].get(s, index["oov"]) for s in subs],
+            index["base"], 4, 1)) for _, _, _, subs, _ in units]
+        self.assertEqual(index["idf"], self.F2._idf(counters))
+        self.assertEqual(index["n_units"], len(units))
+        self.assertEqual(index["n_works"], 1)
+
+    def test_corpus_index_tolerates_unseen_subwords(self):
+        """An index built on one work must still score a unit from another —
+        otherwise `--only` subsets or a late corpus addition would crash rather
+        than degrade."""
+        index = self.F2.build_corpus_index([self.u1], ngram=4, n_out=1)
+        got = [ev["pair"] for ev in
+               self.F2.compare_iter(self.u1, self.u2, **KW, corpus_index=index)
+               if ev.get("t") == "pair"]
+        self.assertEqual(len(got), 5)
+        self.assertTrue(all(0.0 <= p["score"] <= 1.0 for p in got))
+
     def test_FIX_matched_words_j_is_emitted(self):
         """Fixes finding 11: `cnt_j` was computed and discarded."""
         for ev in self.F2.compare_iter(self.u1, self.u2, **KW):
