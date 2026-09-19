@@ -1,6 +1,6 @@
 """Flame text-reuse engine — pure Python, TWO-PHASE, zero dependencies.
 
-FIXED FORK of `flame_pure.py` — v2 of the 2026-09-19 audit (`../../AUDIT.md`).
+FIXED FORK of `flame_pure.py` — see `../../PIPELINE_V2.md`.
 =============================================================================
 `flame_pure.py`, `bpe_pure.py`, `data/bpe_vocab.json` and `LICENSE` are
 byte-identical to their KONI sources and the release advertises that with
@@ -17,7 +17,7 @@ the TLG-derived corpus that is not in this release.
 
 What changed, and what it costs
 -------------------------------
-1. **Symmetric candidate pruning** (audit finding 4). `flame_pure` skips a
+1. **Symmetric candidate pruning.** `flame_pure` skips a
    bigram when its *side-2* posting list exceeds `max(40, 0.04*n2)`; side 1 is
    uncapped, so `compare(A, B)` != `compare(B, A)` — measured at 3,617 vs
    8,402 candidates and 6 vs 12 records at `chain >= 6` on one real pair. Here
@@ -26,7 +26,7 @@ What changed, and what it costs
    *superset* of the shipped forward direction (0 candidates lost on three
    real pairs at production scale). Ties in the candidate ranking break on
    `(i, j)` so the `max_candidates` truncation point is reproducible too.
-2. **Corpus-level TF-IDF** (audit finding 5), opt-in via `corpus_index=`.
+2. **Corpus-level TF-IDF**, opt-in via `corpus_index=`.
    `flame_pure` derives vocabulary, hash base and IDF from the two works of
    the current call, so `score` sits on a different scale for every work pair
    — yet `scripts/filter_by_wp.py` thresholds it across pairs and that gate,
@@ -34,15 +34,15 @@ What changed, and what it costs
    index once with `build_corpus_index()` and every `score` in the sweep
    becomes comparable. Without the argument the per-call behaviour is
    unchanged, so this is a drop-in.
-3. **`matched_words_j` is emitted** (finding 11) — it was computed and
+3. **`matched_words_j` is emitted** — it was computed and
    discarded, and no released record carries it.
-4. **Silent behaviour is reported, not changed** (finding 14): `meta` now
+4. **Silent behaviour is reported, not changed**: `meta` now
    carries `clamped` (every parameter the engine overrode), `cap_hit` and
    `n_candidates_before_cap`, `units_truncated` (CAP_WORDS), and
    `bpe_trained`. The clamping itself still happens — changing it would change
    results.
 5. Imports `bpe_pure_v2`, which fixes the `tokenize_words()`-before-`load()`
-   ordering bug (finding 15).
+   ordering bug.
 
 Deliberately NOT changed: the Levenshtein predicate, the block builder, the
 `core >= ngram and n >= min_chain_words` filter, the emission order, and the
@@ -501,7 +501,7 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         then never used (applying it would drop 3 of the demo pair's 5
         records).
     """
-    # FIX (AUDIT finding 14): the clamping stays — changing it would change
+    # FIX (silent clamping): the clamping stays — changing it would change
     # results — but it is no longer silent.  `meta["clamped"]` names every
     # parameter the engine overrode, so a misconfigured run is visible in its
     # own output instead of only in a careful reading of the source.
@@ -521,7 +521,7 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
     u1 = _units(sections1)
     u2 = _units(sections2)
     n1, n2 = len(u1), len(u2)
-    # FIX (AUDIT finding 14): CAP_WORDS truncation is reported rather than
+    # FIX (silent truncation): CAP_WORDS truncation is reported rather than
     # silent.  Inert under `find_text_reuse.py` (its windows are 140 words),
     # but any other caller passing longer sections lost their tails unseen.
     truncated = (sum(1 for s in sections1[:CAP_SECTIONS]
@@ -553,7 +553,8 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
 
     # BPE-subword TF-IDF (scores candidates; does NOT gate recall)
     #
-    # FIX (AUDIT finding 5): the vocabulary, the hash base and the IDF may now
+    # FIX (score not comparable across work pairs): the vocabulary, the hash
+    # base and the IDF may now
     # come from a CORPUS-level index instead of being rebuilt per call.
     #
     # In `flame_pure.py` all three are derived from `u1 + u2` — the units of
@@ -602,7 +603,7 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
     for j, gs in enumerate(grams2):
         for g in set(gs):
             inv.setdefault(g, []).append(j)
-    # FIX (AUDIT finding 4): SYMMETRIC frequency pruning.
+    # FIX (directional retrieval): SYMMETRIC frequency pruning.
     #
     # `flame_pure.py` computes `df_cap = max(40, int(0.04 * n2))` and drops a
     # bigram when its **side-2** posting list is longer than that.  Side 1's
@@ -703,7 +704,7 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
                 "bridges_i": bridges_i, "bridges_j": bridges_j,
                 "n_blocks": len(raw), "n_chained": len(kept),
                 "matched_words": cnt_i,
-                # FIX (AUDIT finding 11): `cnt_j` was computed on the line
+                # FIX (discarded j-side count): `cnt_j` was computed on the line
                 # above and thrown away, leaving the j-side count recoverable
                 # only by re-counting the `matched_j` map.  None of the 35,753
                 # released records carries it, so no `gap_j` can be computed

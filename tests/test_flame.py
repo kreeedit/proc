@@ -12,7 +12,7 @@ Naming convention
                   engine README or the paper draft**.  Each such test names
                   the claim it falsifies.  Changing the engine to match its
                   documentation would break these tests *on purpose*: they are
-                  the audit's ratchet, not an endorsement of the behaviour.
+                  a ratchet, not an endorsement of the behaviour.
 ``test_*``      — a genuine invariant of the engine worth protecting against
                   regression, or a measured property with no doc conflict.
 
@@ -125,9 +125,10 @@ class TestBaseline(_Fixture):
 # --------------------------------------------------------------------------
 
 class TestBPEModel(_Fixture):
-    """The README's "Silent degradation without the BPE model" caveat implies
-    a degraded *match set*.  Measured: the match set is bit-identical; only
-    `score` moves."""
+    """`demo.py`'s `check_engine_ready()` warns of "silent degradation ...
+    while still returning plausible-looking matches", which reads as a degraded
+    *match set*.  Measured: the match set is bit-identical; only `score`
+    moves.  The guard is still right, for the other reason."""
 
     @staticmethod
     def _set_trained(on: bool) -> bool:
@@ -156,9 +157,9 @@ class TestBPEModel(_Fixture):
         self.assertNotEqual([a[3] for a in trained], [b[3] for b in untrained])
 
     def test_DOC_bpe_model_does_not_change_the_match_set(self):
-        """Falsifies: engine/README.md "Known caveats" — "the engine degrades
-        *silently* without it ... while still returning plausible matches",
-        which reads as *different, worse* matches.
+        """Falsifies `demo.py`'s stated reason for refusing to run without the
+        model — "still returning plausible-looking matches", which implies a
+        different and worse match set.
 
         Measured: identical records, field for field, `score` excluded.
         (Also verified at production scale on a 1609 x 1306-unit real Greek
@@ -457,8 +458,8 @@ class TestScore(_Fixture):
         self.assertEqual(len(self.records), 5)
 
     def test_DOC_released_record_order_is_not_score_order(self):
-        """Backs: engine/README.md — "the scores are not monotonic".  Measured
-        on the archive: 331 of the 359 multi-record work pairs are not
+        """The emission order is the shared-bigram order, not the score order.
+        Measured on the archive: 331 of the 359 multi-record work pairs are not
         score-monotone in file order.  (The demo pair happens to be monotone —
         it must not be used to illustrate the point.)"""
         by_pair = defaultdict(list)
@@ -512,9 +513,9 @@ class TestScore(_Fixture):
 class TestSilentClamping(_Fixture):
 
     def test_DOC_out_of_range_parameters_are_clamped_without_warning(self):
-        """Falsifies: engine/README.md — "No internal logging.  The engine
-        emits no warnings or diagnostics".  True, and that is the bug: a
-        caller asking for `ngram=99` silently gets 8."""
+        """The engine emits no diagnostic of any kind, and that is the defect:
+        a caller asking for `ngram=99` silently gets 8.  `flame_pure_v2`
+        reports the override in `meta["clamped"]` instead."""
         meta = next(ev for ev in F.compare_iter(
             self.u1, self.u2, ngram=99, n_out=99, fuzz_threshold=0.1,
             min_chain_words=0, max_candidates=4000) if ev["t"] == "meta")
@@ -557,7 +558,7 @@ class TestBpeOrderingBug(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
-# provenance findings about the released run
+# provenance of the released run
 # --------------------------------------------------------------------------
 
 class TestReleasedRun(unittest.TestCase):
@@ -571,8 +572,8 @@ class TestReleasedRun(unittest.TestCase):
         self.assertEqual(len(self.recs), 35753)
 
     def test_DOC_max_candidates_is_recoverable_from_the_artefact(self):
-        """Falsifies: engine/README.md — "no artefact of the run records which
-        value was in effect".
+        """The reported run recorded no run-parameter metadata, but the value
+        of `max_candidates` is nonetheless recoverable from the released data.
 
         A record can only exist for a *chosen candidate*, so records-per-pair
         is bounded by `max_candidates`.  Measured: the maximum over all 376
@@ -619,11 +620,11 @@ class TestReleasedRun(unittest.TestCase):
 class TestApparatus(unittest.TestCase):
 
     def test_apparatus_tokens_survive_clean_text(self):
-        """engine/README.md puts the apparatus contamination at "≈0.5% of its
-        198,474 words", but also at "6,618 bare numbers" — which is 3.3%.  On
-        the shipped sample the two figures cannot both hold: bare numerals
-        alone are 2.36% of the tokens the engine sees, and `_clean_text()`
-        removes none of them."""
+        """The Teubner apparatus is interleaved with the Proclus running text
+        and `_clean_text()` does not remove it.  On the shipped sample, bare
+        numerals alone are 2.36% of the tokens the engine sees and Latin-script
+        tokens a further 4.44%; the cleaning stage removes 87 tokens and no
+        numeral at all."""
         data = json.loads((SAMPLES / "proclus_in_rem_publicam_101r.json")
                           .read_text(encoding="utf-8"))
         raw = " ".join(s["text"] for s in data["segments"])
@@ -647,7 +648,7 @@ class TestApparatus(unittest.TestCase):
 class TestFrozenFiles(unittest.TestCase):
 
     def test_frozen_files_are_untouched(self):
-        """The audit's hard constraint, as a test: the four protected files
+        """The release's hard constraint, as a test: the four protected files
         still match `engine/MANIFEST.sha256`.  Every fix lives in a `_v2`
         fork precisely so this keeps passing."""
         import hashlib
@@ -694,11 +695,11 @@ def _fn_asts(src: str) -> dict:
 
 
 class TestFixedFork(_Fixture):
-    """`engine/flame/flame_pure_v2.py` is where the audit's fixes live, since
+    """`engine/flame/flame_pure_v2.py` is where the corrections live, since
     `flame_pure.py` is byte-frozen.  These tests pin both halves of the claim:
     what the fork changes, and — just as important — what it does not."""
 
-    # The matching stage is what produces the matches, and the audit found it
+    # The matching stage is what produces the matches, and it was found
     # sound.  Every one of these must stay byte-identical to the frozen engine.
     UNCHANGED = ("normalize", "_strip_milestones", "_units", "_hashes", "_idf",
                  "_tfidf", "cosine", "auto_threshold", "_lev_dist",
@@ -739,7 +740,8 @@ class TestFixedFork(_Fixture):
                            r["matched_words"], r["score"]) for r in self.records])
 
     def test_FIX_candidate_retrieval_is_symmetric(self):
-        """Fixes finding 4.  The frozen engine caps side 2's postings only;
+        """Fixes the directional retrieval.  The frozen engine caps side 2's
+        postings only;
         the fork caps each side by its own unit count and drops a bigram only
         when it is over-frequent on both, which is invariant under a swap.
 
@@ -756,7 +758,8 @@ class TestFixedFork(_Fixture):
         self.assertEqual(n_cand(self.F2, one, many), n_cand(self.F2, many, one))
 
     def test_FIX_corpus_index_makes_score_call_invariant(self):
-        """Fixes finding 5.  The same unit pair must score the same however the
+        """Fixes the per-call score scale.  The same unit pair must score the
+        same however the
         call around it is composed — which is what an absolute cross-pair
         threshold silently assumes."""
         index = self.F2.build_corpus_index([self.u1, self.u2], ngram=4, n_out=1)
@@ -797,7 +800,8 @@ class TestFixedFork(_Fixture):
         self.assertTrue(all(0.0 <= p["score"] <= 1.0 for p in got))
 
     def test_FIX_matched_words_j_is_emitted(self):
-        """Fixes finding 11: `cnt_j` was computed and discarded."""
+        """Fixes the discarded j-side count: `cnt_j` was computed and thrown
+        away, so no released record carries it."""
         for ev in self.F2.compare_iter(self.u1, self.u2, **KW):
             if ev.get("t") == "pair":
                 p = ev["pair"]
@@ -805,7 +809,8 @@ class TestFixedFork(_Fixture):
                 self.assertEqual(p["matched_words_j"], len(p["matched_j"]))
 
     def test_FIX_silent_behaviour_is_reported(self):
-        """Fixes finding 14.  The clamping still happens — changing it would
+        """Fixes the silent clamping.  The clamping still happens — changing it
+        would
         change results — but `meta` now names it."""
         meta = next(ev for ev in self.F2.compare_iter(
             self.u1, self.u2, ngram=99, n_out=99, fuzz_threshold=0.1,
@@ -830,7 +835,8 @@ class TestFixedFork(_Fixture):
         self.assertEqual(meta["n_candidates_before_cap"], 10)
 
     def test_FIX_bpe_load_order(self):
-        """Fixes finding 15: `tokenize_words()` before `load()` returned
+        """Fixes the load-order defect: `tokenize_words()` before `load()`
+        returned
         characters in the frozen module."""
         import importlib
         from flame import bpe_pure_v2
@@ -853,7 +859,8 @@ class TestFixedPipeline(unittest.TestCase):
         cls.V2 = find_text_reuse_v2
 
     def test_FIX_apparatus_tokens_are_stripped(self):
-        """Fixes finding 12.  The frozen `_clean_text` leaves 255 bare numerals
+        """Fixes the surviving apparatus.  The frozen `_clean_text` leaves 255
+        bare numerals
         and 476 Latin tokens in the Proclus sample; the v2 cleaning removes
         them — and, because the word stream shortens, re-phases the windows."""
         data = json.loads((SAMPLES / "proclus_in_rem_publicam_101r.json")
@@ -875,7 +882,7 @@ class TestFixedPipeline(unittest.TestCase):
         self.assertEqual(self.V2.clean_text(latin, True), latin)
 
     def test_FIX_windows_rephase_under_the_strip(self):
-        """The cost of finding 12's fix, stated as a test: every `#k` label
+        """The cost of the apparatus filter, stated as a test: every `#k` label
         moves, so no positional reference survives it."""
         frozen = self.V2.build_units(SAMPLES / "proclus_in_rem_publicam_101r.json",
                                      "x", strip_apparatus=False)
@@ -895,7 +902,7 @@ class TestFixedPipeline(unittest.TestCase):
             self.assertEqual(a, b, name)
 
     def test_v2_outputs_do_not_overwrite_released_artefacts(self):
-        """The audit's other hard constraint: the fixed pipeline writes beside
+        """The other hard constraint: the corrected pipeline writes beside
         the release, never over it."""
         import find_text_reuse_v2 as V2
         import filter_by_wp_v2 as W2

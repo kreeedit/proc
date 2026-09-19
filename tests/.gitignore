@@ -1,2 +1,4 @@
+corpus/
+*.log
 __pycache__/
 *.pyc

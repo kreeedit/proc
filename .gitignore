@@ -1,2 +1,15 @@
-# A cikk-kéziratok és a technikai korrekciók nem a kiadás része.
+# A cikk-kéziratok és a technikai korrekciós jegyzetek munkadokumentumok,
+# nem a kiadás része.
 docs/
+
+# Az audit anyagai: a megállapítások, a mérőszkriptek, az első kör patchei és
+# a cikk §4-ének cserejavaslata. A javított kód és annak dokumentációja a
+# repóban marad; az odavezető vizsgálat nem.
+AUDIT.md
+Section4_FLAME_rewritten.md
+patches/
+tests/measurements/
+
+# A javított szűrő újraszámolt kimenete — a szkript futtatásával bármikor
+# előáll, l. PIPELINE_V2.md.
+logs/clean_by_wp_v2/

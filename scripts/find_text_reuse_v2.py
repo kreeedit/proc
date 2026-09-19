@@ -3,8 +3,7 @@
 scripts/find_text_reuse_v2.py
 =============================
 
-A javított sweep-harness — a 2026-09-19-i audit (`../AUDIT.md`) C osztályú
-megállapításainak implementációja.
+A javított sweep-harness. Mit és miért javít: `../PIPELINE_V2.md`.
 
 Mit csinál másképp a befagyasztott `scripts/find_text_reuse.py`-hoz képest
 --------------------------------------------------------------------------
@@ -258,7 +257,7 @@ def run_sweep(works: list[dict], kw: dict, limit_pairs: int | None,
                 "chain_len": p.get("chain_len", 0),
                 "matched_words": p.get("matched_words", 0),
                 # A motor mostantól maga adja — nem a `matched_j` map
-                # újraszámolásából jön (l. AUDIT 11. megállapítás).
+                # újraszámolásából jön (a motor korábban eldobta).
                 "matched_words_j": p.get("matched_words_j", 0),
                 "n_chained": p.get("n_chained", 0),
                 "ref_i": p.get("label_i", ""), "ref_j": p.get("label_j", ""),
@@ -302,7 +301,7 @@ def report_diagnostics(diag: dict, kw: dict) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Javított szövegegyezés-keresés (FLAME v2) — l. AUDIT.md")
+        description="Javított szövegegyezés-keresés (FLAME v2) — l. PIPELINE_V2.md")
     ap.add_argument("--only", help="vesszős tlg_id részhalmaz")
     ap.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR),
                     help=f"kimeneti könyvtár (default: "
@@ -345,7 +344,7 @@ def main() -> None:
             f"       Amit futtatni tudsz a csomagolt mintákon:\n"
             f"         python3 scripts/demo_v2.py       # a javított pipeline\n"
             f"         python3 engine/demo.py           # a befagyasztott\n"
-            f"       Lásd: PIPELINE_V2.md, AUDIT.md.")
+            f"       Lásd: PIPELINE_V2.md.")
     manifest = H.load_manifest()
     works = H.collect_built_works(manifest, only)
     if len(works) < 2:

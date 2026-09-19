@@ -4,24 +4,20 @@ Companion material for the DH paper draft
 *"Eustratius' Implicit Authority in the Twelfth-Century Aristotelian Commentary"*
 (the pilot case studies on Proclus → Eustratius and Psellos → Eustratius).
 
-> **Audited 19 September 2026. This note should be read before any figure below
-> is cited.** The engine was audited against the shipped code and the shipped
-> match data. Sixteen findings, each with the measurement that establishes it,
-> are recorded in [`AUDIT.md`](AUDIT.md); those that bear on the reported
-> figures are summarised under [Limitations of the reported
-> run](#limitations-of-the-reported-run). The authoritative description of the
-> matching procedure is [`engine/README.md`](engine/README.md); remedies are
-> implemented in a parallel pipeline documented in
-> [`PIPELINE_V2.md`](PIPELINE_V2.md), and a replacement for §4 of the manuscript
-> is provided as
-> [`Section4_FLAME_rewritten.md`](Section4_FLAME_rewritten.md).
+> **Examined in September 2026. This note should be read before any figure
+> below is cited.** The engine was measured against the shipped code and the
+> shipped match data. The defects that bear on the reported figures are
+> summarised under [Limitations of the reported
+> run](#limitations-of-the-reported-run); the authoritative description of the
+> matching procedure is [`engine/README.md`](engine/README.md), and the
+> remedies are implemented in a parallel pipeline documented in
+> [`PIPELINE_V2.md`](PIPELINE_V2.md).
 >
 > **No behaviour was altered.** The engine remains byte-identical to its source,
 > `python3 engine/demo.py` still reproduces the chain-53 anchor,
 > `python3 scripts/compute_reported_numbers.py` still yields the shipped
 > figures, and no released artefact was rewritten. Only documentation was
-> edited; both `MANIFEST.sha256` files were regenerated accordingly and the
-> pre-audit hashes are recorded in `AUDIT.md`.
+> edited, and both `MANIFEST.sha256` files were regenerated accordingly.
 
 This directory bundles the **analysis pipeline code**, the **results the paper cites**, and the
 **match data** needed to reproduce every number. It does **not** contain the *source-corpus
@@ -37,9 +33,7 @@ reads.
 ```
 paper_release/
 ├── README.md                      this file
-├── AUDIT.md                       the 2026-09-19 audit: findings and measurements
-├── PIPELINE_V2.md                 the corrected pipeline
-├── Section4_FLAME_rewritten.md    a replacement for §4 of the manuscript
+├── PIPELINE_V2.md                 the corrected pipeline: defects, remedies, costs
 ├── engine/                        the matching engine and its documentation
 │   ├── README.md                     the authoritative description of the method
 │   ├── demo.py                       a runnable verification on redistributable text
@@ -47,13 +41,11 @@ paper_release/
 │   └── flame/flame_pure_v2.py        the corrected engine
 ├── scripts/                       analysis pipeline (Python, stdlib only)
 │   └── *_v2.py                       the corrected harness, filter and demonstration
-├── tests/                         behavioural tests and the audit's measurement scripts
+├── tests/                         behavioural tests against the unmodified engine
 ├── logs/                          input data for compute_reported_numbers.py
 │   ├── text_reuse_matches.ndjson     35,753 raw matches (the sweep output)
 │   ├── overlap_filter_global/byz_byz_tagged.{ndjson,tsv}
-│   ├── clean_by_wp/                  work-package candidate sets (§5.3/§6)
-│   └── clean_by_wp_v2/               the same sets without the cross-pair score gate
-├── patches/                       first-pass audit diffs, superseded by the v2 pipeline
+│   └── clean_by_wp/                  work-package candidate sets (§5.3/§6)
 └── results/
     ├── reported_numbers.json      machine-checked numbers for the paper (generated)
     ├── compare_controls.md        control-corpus comparison (III/6 demo)
@@ -63,7 +55,8 @@ paper_release/
 
 The manuscript drafts and the technical-correction notes are kept under `docs/`
 in the working tree but are **not part of this archive** and are excluded from
-version control; the archive ships code, data and the documentation of both.
+version control. The archive ships the code, the data, and the documentation of
+both.
 
 ---
 
@@ -132,10 +125,10 @@ recomputable from the shipped data by `compute_reported_numbers.py`.
 
 ## Limitations of the reported run
 
-The following are established by measurement, not by inspection, in the audit
-of 19 September 2026 ([`AUDIT.md`](AUDIT.md)). Each is remedied in the
-corrected pipeline but not in the reported run, since remedying it there
-requires the sweep to be repeated.
+The following are established by measurement rather than by inspection. Each is
+remedied in the corrected pipeline described in
+[`PIPELINE_V2.md`](PIPELINE_V2.md), but not in the reported run, since
+remedying it there requires the sweep to be repeated.
 
 **The candidate cap was 1,000, and it is a recall parameter.** The value is
 recoverable from the released data: the number of records per work pair attains
@@ -156,7 +149,7 @@ every field, so the effect is confined to recall.
 12 of WP1's 19 chain-≥6 candidates and 19 of WP2's 33. The reported counts of
 **7** and **14** are therefore determined principally by that gate rather than
 by chain length; without it the same criteria select 19, 33 and 693
-respectively (see `logs/clean_by_wp_v2/wp_delta_report.md`).
+respectively; `scripts/filter_by_wp_v2.py` recomputes them.
 `compute_reported_numbers.py` does not read the score.
 
 **The Proclus text carries its critical apparatus inline.** After cleaning,
@@ -166,7 +159,7 @@ similarity threshold matches numerals to one another.
 **`ancient_classical` is a single era bucket** spanning Plato to Proclus, some
 nine centuries, so era-layer tables report such pairs as same-layer matches.
 
-What the audit found sound is the matching itself. Of 213 matched word pairs in
+What the examination found sound is the matching itself. Of 213 matched word pairs in
 the demonstration, 201 are string-identical and the fuzzy remainder is almost
 entirely genuine morphological variation; precision derives from the
 core-length filter rather than from the similarity threshold. The length prune
@@ -183,12 +176,13 @@ python3 -m unittest discover -s tests      # 47 tests, ~60 s, standard library o
 ```
 
 `tests/test_flame.py` runs against the unmodified engine and the shipped match
-data and records its actual behaviour; `test_DOC_*` names each case whose
-behaviour contradicts a docstring or a document. `tests/measurements/` holds the
-scripts behind every number in `AUDIT.md`.
+data and records its actual behaviour. Cases named `test_DOC_*` are those whose
+recorded behaviour contradicts a docstring or a document; cases named
+`test_FIX_*` hold the corrections described in
+[`PIPELINE_V2.md`](PIPELINE_V2.md).
 
 ---
 
-*Generated 2026-08-29; audit notes and test suite added 2026-09-19. Content
+*Generated 2026-08-29; corrected pipeline and test suite added 2026-09-19. Content
 excludes source-corpus data by policy; data can be supplied separately on
 request.*

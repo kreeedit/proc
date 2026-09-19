@@ -1,6 +1,6 @@
 """Pure-Python BPE subword tokenizer (stdlib only: collections, re, json).
 
-FIXED FORK of `bpe_pure.py` — see `../../AUDIT.md`, finding 15.
+FIXED FORK of `bpe_pure.py` — see `../../PIPELINE_V2.md`.
 One behavioural change, and only one: `tokenize_words()` now calls `load()`
 *before* reading `_RANKS`, so a first call on a freshly imported module
 returns subwords instead of bare characters.  Everything else is identical.
@@ -9,7 +9,6 @@ returns subwords instead of bare characters.  Everything else is identical.
 that with `cmp` + `MANIFEST.sha256`, so the fix could not be applied there.
 This fork is what `flame_pure_v2.py` imports; `flame_pure.py` still imports
 the frozen module, and the reported run is unaffected.
-
 
 Trains a Byte Pair Encoding vocabulary on the cached Greek texts so that
 inflectional endings (-ος, -ου, -ων, -οις, …) and stems split into separate
@@ -210,7 +209,8 @@ def tokenize_words(text: str, merge_limit=None):
     subwords   : normalized subword strings (last one carries </w>)
     sub_to_word: subwords[i] belongs to orig_words[sub_to_word[i]]
     """
-    # FIX (AUDIT finding 15): `load()` must run BEFORE `_RANKS` is read.
+    # FIX (tokenize_words before load): `load()` must run BEFORE `_RANKS`
+    # is read.
     # In `bpe_pure.py` these two lines are the other way round, so the first
     # call on a freshly imported module saw `_RANKS is None`, fell back to
     # `{}` and encoded character-by-character:

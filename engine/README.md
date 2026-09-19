@@ -8,9 +8,10 @@ full, and `flame/flame_pure.py` is the exact file that ran, byte for byte.
 
 This document is the authoritative description of that engine. It supersedes
 the account of the matching procedure given in §4 of the manuscript, which
-describes a different algorithm; a replacement for that section, written from
-the behaviour documented here, is provided as
-[`../Section4_FLAME_rewritten.md`](../Section4_FLAME_rewritten.md).
+describes a different algorithm: character-level quadrigrams rather than word
+bigrams, hash-collision clustering rather than an inverted index, and a
+prohibition on gapped alignment that the code does not observe. §4 should be
+rewritten from the present document.
 
 The engine is not the public
 [`kreeedit/FLAME`](https://github.com/kreeedit/FLAME) tool. The two implement
@@ -18,15 +19,13 @@ the same method family but differ in every stage that determines what is
 reported; see [Relation to the public FLAME tool](#relation-to-the-public-flame-tool).
 
 Every quantitative statement below was verified against the shipped code and
-the shipped match data in an audit conducted on 19 September 2026. The finding
-list and the measurements are in [`../AUDIT.md`](../AUDIT.md); the assertions
-are held by `../tests/test_flame.py`, and the scripts that produced the
-measurements are in `../tests/measurements/`. Where a defect admits a remedy,
-that remedy is implemented in a parallel pipeline described in
-[`../PIPELINE_V2.md`](../PIPELINE_V2.md). The present package is unaffected by
-it: `flame/flame_pure.py`, `flame/bpe_pure.py`, `data/bpe_vocab.json` and
-`LICENSE` remain byte-identical to their sources, and the reported figures are
-reproducible from them.
+the shipped match data, and the assertions are held by
+`../tests/test_flame.py`, which runs against this engine unmodified. Where a
+defect admits a remedy, that remedy is implemented in a parallel pipeline
+described in [`../PIPELINE_V2.md`](../PIPELINE_V2.md). The present package is
+unaffected by it: `flame/flame_pure.py`, `flame/bpe_pure.py`,
+`data/bpe_vocab.json` and `LICENSE` remain byte-identical to their sources, and
+the reported figures are reproducible from them.
 
 ---
 
@@ -506,7 +505,8 @@ Greek and Latin).
 
 ---
 
-*Prepared 16 September 2026; revised 19 September 2026 following the audit
-recorded in [`../AUDIT.md`](../AUDIT.md). Engine and model copied from the
-working tree as of the earlier date; sample texts extracted from the paper's
-corpus with the citation unit and window numbering preserved.*
+*Prepared 16 September 2026; revised 19 September 2026 following an
+examination of the engine against the shipped code and the released match data.
+Engine and model copied from the working tree as of the earlier date; sample
+texts extracted from the paper's corpus with the citation unit and window
+numbering preserved.*

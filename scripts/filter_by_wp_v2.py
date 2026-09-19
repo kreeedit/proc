@@ -3,8 +3,7 @@
 scripts/filter_by_wp_v2.py
 ==========================
 
-A javított munkacsomag-szűrő — a 2026-09-19-i audit (`../AUDIT.md`) 5.
-megállapításának implementációja.
+A javított munkacsomag-szűrő. Mit és miért javít: `../PIPELINE_V2.md`.
 
 A probléma
 ----------
@@ -147,7 +146,7 @@ def shipped_counts() -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Javított WP-szűrő — l. AUDIT.md")
+    ap = argparse.ArgumentParser(description="Javított WP-szűrő — l. PIPELINE_V2.md")
     ap.add_argument("--input", default=str(DEFAULT_TSV))
     ap.add_argument("--out-dir", default=str(DEFAULT_OUT),
                     help=f"default {DEFAULT_OUT.relative_to(ROOT)} — a kiadott "
