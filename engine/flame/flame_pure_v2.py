@@ -575,7 +575,6 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         base = corpus_index["base"]
         oov = corpus_index["oov"]
         idf = corpus_index["idf"]
-        idf_scope = "corpus"
     else:
         vocab = {}
         for _, _, _, subs, _ in u1 + u2:
@@ -585,7 +584,6 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         base = len(vocab) + 1
         oov = len(vocab)
         idf = None
-        idf_scope = "call"
     counters1 = [Counter(_hashes([vocab.get(s, oov) for s in subs],
                                  base, ngram, n_out))
                  for _, _, _, subs, _ in u1]
