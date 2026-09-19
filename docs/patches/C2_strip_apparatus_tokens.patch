@@ -1,0 +1,55 @@
+--- a/engine/find_text_reuse.py
++++ b/engine/find_text_reuse.py
+@@ -133,6 +133,43 @@
+ ]
+ _STOP_PHRASE_RE = re.compile("|".join(re.escape(p) for p in _STOP_PHRASES))
+ 
++# --- C2 (AUDIT.md): apparátus-maradvány a Proklos-szövegben ---------------
++# A `_clean_text` jelenlegi szabályai a Teubner-apparátust NEM viszik el: a
++# mintán 255 csupasz szám (2,36%) és 476 latin betűs token (4,44%) marad benne.
++# A FLAME `fuzz=0.75` küszöbe a számokat egymáshoz illeszti (103~104 = 0.833),
++# tehát ezek valódi illesztési zajt adnak, nem csak kozmetikai hibát.
++#
++# FIGYELEM: ez C osztályú változtatás.  A szóáram megrövidül, ezért MINDEN
++# `#k` ablakcímke és minden `word_range` elmozdul — a jelenlegi eredmények
++# pozicionális hivatkozásai érvénytelenné válnak.  Csak a sweep újrafuttatásával
++# együtt alkalmazható.
++#
++# Görög szó = legalább egy görög betű.  Amit eldobunk: a tisztán számjegyből
++# álló tokenek, és a tisztán ASCII-betűs tokenek.  Az utóbbi a latin nyelvű
++# művekre nézve túl agresszív volna, ezért csak akkor fut, ha a szegmens
++# többségében görög (`_is_greek_segment`).
++_DIGIT_TOKEN_RE = re.compile(r"(?<!\w)\d+(?!\w)")
++_LATIN_TOKEN_RE = re.compile(r"(?<!\w)[A-Za-z]+(?!\w)")
++_GREEK_CHAR_RE = re.compile(r"[\u0370-\u03ff\u1f00-\u1fff]")
++
++
++def _is_greek_segment(t: str, min_share: float = 0.5) -> bool:
++    """Igaz, ha a tokenek legalább `min_share` hányada tartalmaz görög betűt."""
++    ws = re.findall(r"\b\w+\b", t)
++    if not ws:
++        return False
++    greek = sum(1 for w in ws if _GREEK_CHAR_RE.search(w))
++    return greek / len(ws) >= min_share
++
++
++def _strip_apparatus_tokens(t: str) -> str:
++    """Csupasz számok és latin betűs tokenek eltávolítása görög szövegből."""
++    if not _is_greek_segment(t):
++        return t
++    t = _DIGIT_TOKEN_RE.sub(" ", t)
++    t = _LATIN_TOKEN_RE.sub(" ", t)
++    return t
++
+ 
+ # ---------------------------------------------------------------------------
+ # FLAME motor betöltése
+@@ -232,6 +269,8 @@
+     t = _APPARATUS_RE.sub(" ", t)
+     t = _STOP_PHRASE_RE.sub(" ", t)
+     t = _MILESTONE_RE.sub("", t)
++    # (f) C2: apparátus-maradvány (csupasz számok, latin tokenek) — l. fent.
++    t = _strip_apparatus_tokens(t)
+     return _WS.sub(" ", t).strip()
+ 
+ 

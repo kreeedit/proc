@@ -1,0 +1,33 @@
+--- a/engine/flame/flame_pure.py
++++ b/engine/flame/flame_pure.py
+@@ -372,16 +372,28 @@
+     # Phase 1: inverted-index candidate generation on word BIGRAMS (robust to
+     # Ionic/Attic spelling drift; trigrams are too brittle for that)
+     wn = 2
++    grams1 = [_word_ngrams(u[2], wn) for u in u1]
+     grams2 = [_word_ngrams(u[2], wn) for u in u2]
+     inv: dict[tuple, list[int]] = {}
+     for j, gs in enumerate(grams2):
+         for g in set(gs):
+             inv.setdefault(g, []).append(j)
+-    df_cap = max(40, int(0.04 * n2))
++    # Symmetric frequency pruning.  The original capped only the side-2
++    # postings and sized the cap from n2, so compare(A, B) and compare(B, A)
++    # pruned different bigrams and returned different match sets.  Both sides
++    # are now capped, and the cap is sized from the smaller side so its value
++    # is direction-independent too.
++    df1: Counter = Counter()
++    for gs in grams1:
++        for g in set(gs):
++            df1[g] += 1
++    df_cap = max(40, int(0.04 * min(n1, n2)))
+     cand: dict[tuple, int] = {}
+     for i in range(n1):
+         local: dict[int, int] = {}
+-        for g in set(_word_ngrams(u1[i][2], wn)):
++        for g in set(grams1[i]):
++            if df1[g] > df_cap:
++                continue
+             posting = inv.get(g)
+             if not posting or len(posting) > df_cap:
+                 continue
