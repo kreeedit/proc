@@ -45,6 +45,16 @@ from flame import bpe_pure, flame_pure as F  # noqa: E402
 SAMPLES = ENGINE / "samples"
 NDJSON = ROOT / "logs" / "text_reuse_matches.ndjson"
 
+# `scripts/filter_by_wp_v2.py` is the one module in this package that needs a
+# third-party library. The tests that exercise it are skipped when it is
+# absent, so that `python3 -m unittest discover -s tests` still passes on a
+# bare interpreter, as the README promises.
+try:
+    import pandas  # noqa: F401
+    HAVE_PANDAS = True
+except Exception:
+    HAVE_PANDAS = False
+
 # The parameters of the reported sweep (max_candidates is the code default here;
 # see test_max_candidates_saturation_signature for what the run actually used).
 KW = {"ngram": 4, "n_out": 1, "fuzz_threshold": 0.75,
@@ -905,16 +915,24 @@ class TestFixedPipeline(unittest.TestCase):
         """The other hard constraint: the corrected pipeline writes beside
         the release, never over it."""
         import find_text_reuse_v2 as V2
-        import filter_by_wp_v2 as W2
         self.assertEqual(V2.DEFAULT_OUT_DIR, ROOT / "logs" / "v2")
-        self.assertEqual(W2.DEFAULT_OUT, ROOT / "logs" / "clean_by_wp_v2")
         self.assertTrue((ROOT / "logs" / "text_reuse_matches.ndjson").is_file())
+        # Read the filter's default out of the source rather than importing it:
+        # that module needs pandas, and this assertion does not.
+        src = (ROOT / "scripts" / "filter_by_wp_v2.py").read_text(encoding="utf-8")
+        self.assertIn('DEFAULT_OUT = ROOT / "logs" / "clean_by_wp_v2"', src)
 
 
+@unittest.skipUnless(HAVE_PANDAS, "pandas is not installed")
 class TestFixedWorkPackageFilter(unittest.TestCase):
     """`scripts/filter_by_wp_v2.py` on the released data: with no run
     provenance beside it, the score scale is per-call, so the absolute gate is
-    switched off and the counts revert to what chain length alone selects."""
+    switched off and the counts revert to what chain length alone selects.
+
+    Skipped without pandas, which is the one third-party dependency anywhere
+    in this package — the engine, both harnesses and the rest of these tests
+    are standard library only, and a reader who clones the repository and runs
+    the suite must not be told it failed because of an optional filter."""
 
     @classmethod
     def setUpClass(cls):

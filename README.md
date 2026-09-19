@@ -19,6 +19,30 @@ Companion material for the DH paper draft
 > figures, and no released artefact was rewritten. Only documentation was
 > edited, and both `MANIFEST.sha256` files were regenerated accordingly.
 
+## Quick start
+
+Nothing needs to be installed. Python 3.8 or later, standard library only:
+
+```bash
+python3 engine/demo.py                  # the engine, on redistributable text
+python3 scripts/demo_v2.py              # the corrected engine, same text
+python3 scripts/compute_reported_numbers.py   # every figure in the paper
+python3 -m unittest discover -s tests   # 49 tests
+```
+
+`engine/demo.py` reproduces the strongest cross-author match in the released
+data — a chain of 53 words between Plato and Proclus — and exits non-zero if it
+does not. It is the quickest way to satisfy yourself that the shipped engine is
+the one that ran. `scripts/demo_v2.py` prints the same pair through the
+corrected engine, and the first of its two tables is identical, which is how the
+corrections demonstrate that they did not disturb the matching.
+
+The only third-party dependency anywhere in the package is pandas, required by
+`scripts/filter_by_wp_v2.py` alone; the tests that exercise it are skipped when
+it is absent.
+
+---
+
 This directory bundles the **analysis pipeline code**, the **results the paper cites**, and the
 **match data** needed to reproduce every number. It does **not** contain the *source-corpus
 texts* (TLG / OCR / open-TEI originals) — those are licensed and stay out of this archive. The
@@ -172,7 +196,7 @@ every figure derived from the score.
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests      # 47 tests, ~60 s, standard library only
+python3 -m unittest discover -s tests      # 49 tests, roughly 35 s
 ```
 
 `tests/test_flame.py` runs against the unmodified engine and the shipped match
