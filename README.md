@@ -4,6 +4,22 @@ Companion material for the DH paper draft
 *"Eustratius' Implicit Authority in the Twelfth-Century Aristotelian Commentary"*
 (the pilot case studies on Proclus → Eustratius and Psellos → Eustratius).
 
+> **Audited 2026-09-19 — read this before citing a number.** The engine was
+> audited against the shipped code and the shipped match data. Sixteen findings,
+> each with its measurement, are in [`AUDIT.md`](AUDIT.md); the ones that reach
+> into the paper are summarised under [Known limits of the reported
+> run](#known-limits-of-the-reported-run) below. The fixes are implemented as a
+> parallel `_v2` pipeline described in [`PIPELINE_V2.md`](PIPELINE_V2.md), and a
+> replacement §4 written from the measured behaviour is at
+> [`docs/Section4_FLAME_rewritten.md`](docs/Section4_FLAME_rewritten.md).
+>
+> **Nothing here changed behaviour.** The engine is still byte-identical to its
+> KONI source, `python3 engine/demo.py` still reproduces the chain-53 anchor,
+> `python3 scripts/compute_reported_numbers.py` still produces the shipped
+> figures, and no released artefact was rewritten. Only prose in this file and
+> in `engine/README.md` was edited; both `MANIFEST.sha256` files were
+> regenerated accordingly, with the pre-edit hashes recorded in `AUDIT.md`.
+
 This directory bundles the **analysis pipeline code**, the **results the paper cites**, and the
 **match data** needed to reproduce every number. It does **not** contain the *source-corpus
 texts* (TLG / OCR / open-TEI originals) — those are licensed and stay out of this archive. The
@@ -94,5 +110,56 @@ cross-check ✓).
 
 ---
 
-*Generated 2026-08-29. Content excludes source-corpus data by policy; data can be supplied
-separately on request.*
+## Known limits of the reported run
+
+From the 2026-09-19 audit ([`AUDIT.md`](AUDIT.md)). Each item is measured, not
+inferred; each is fixed in the v2 pipeline but **not** in the reported run,
+because fixing it there means re-running the sweep.
+
+- **`max_candidates` was 1000**, recoverable from the artefact itself:
+  records-per-work-pair tops out at exactly 1000 and the saturated pair's chain
+  lengths start at 19 where unsaturated pairs are dominated by chain 4–8. On
+  work pairs the size of this corpus's largest, the candidate sets run to
+  3,617–11,574, so a cap of 1000 retains 9–28% of them. The cap is a recall
+  parameter and belongs in any citation of the run.
+- **Candidate retrieval was directional.** `compare(A, B) ≠ compare(B, A)`:
+  measured 304 vs 515 records on one real pair, 6 vs 12 at `chain ≥ 6`. The
+  sweep's `i < j` enumeration fixed one direction per pair. Records found in
+  both directions are identical, so this is a recall effect only.
+- **`score` is normalized per work pair and must not be compared across them.**
+  `scripts/filter_by_wp.py` nonetheless applies absolute gates: they drop 12 of
+  WP1's 19 chain-≥6 candidates and 19 of WP2's 33, so the reported **7** and
+  **14** are mostly the gate's doing. Without the gate the same criteria select
+  19 / 33 / 693 (see `logs/clean_by_wp_v2/wp_delta_report.md`).
+  `compute_reported_numbers.py` itself never reads `score`.
+- **The Proclus text carries its critical apparatus inline.** After cleaning,
+  2.4% of its tokens are bare numerals and 4.4% are Latin-script, and the
+  matching threshold pairs numerals with each other.
+- **`ancient_classical` is one era bucket** spanning Plato to Proclus, ~900
+  years, so era-layer tables read those as a same-layer match.
+
+What the audit found *sound*: the matching itself. On the demo pair 201 of 213
+matched word pairs are string-identical and the fuzzy remainder is almost all
+genuine morphological variation; the precision comes from the `core >= ngram`
+filter. The length prune never rejects a pair that would pass (20,000 random
+pairs × 5 thresholds, 0 disagreements) and every block is a strictly increasing
+1:1 pairing (78,713 blocks, 0 violations). The engine reports what it finds
+accurately; what is unreliable is what it *fails* to find, and every
+score-derived figure.
+
+## Tests
+
+```bash
+python3 -m unittest discover -s tests      # 47 tests, ~60 s, standard library only
+```
+
+`tests/test_flame.py` runs against the unmodified engine and the shipped match
+data and records its actual behaviour; `test_DOC_*` names each case whose
+behaviour contradicts a docstring or a document. `tests/measurements/` holds the
+scripts behind every number in `AUDIT.md`.
+
+---
+
+*Generated 2026-08-29; audit notes and test suite added 2026-09-19. Content
+excludes source-corpus data by policy; data can be supplied separately on
+request.*

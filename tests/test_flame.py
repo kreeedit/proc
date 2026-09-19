@@ -641,48 +641,15 @@ class TestApparatus(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
-# class A: the docstring-only fork must stay behaviourally identical
+# the frozen files must stay frozen
 # --------------------------------------------------------------------------
 
-class TestDocstringFork(_Fixture):
-    """`engine/flame/flame_pure_v2.py` carries the corrected docstrings that
-    could not be applied to the byte-identical `flame_pure.py`.  These two
-    tests are what make "no reported metric changes" checkable rather than
-    asserted."""
-
-    @staticmethod
-    def _strip_docstrings(src: str) -> str:
-        import ast
-        tree = ast.parse(src)
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.Module, ast.FunctionDef,
-                                 ast.AsyncFunctionDef, ast.ClassDef)):
-                body = node.body
-                if (body and isinstance(body[0], ast.Expr)
-                        and isinstance(body[0].value, ast.Constant)
-                        and isinstance(body[0].value.value, str)):
-                    node.body = body[1:] or [ast.Pass()]
-        return ast.dump(ast.fix_missing_locations(tree))
-
-    def test_v2_is_ast_identical_to_the_frozen_engine(self):
-        a = self._strip_docstrings(
-            (ENGINE / "flame" / "flame_pure.py").read_text(encoding="utf-8"))
-        b = self._strip_docstrings(
-            (ENGINE / "flame" / "flame_pure_v2.py").read_text(encoding="utf-8"))
-        self.assertEqual(a, b, "flame_pure_v2.py changed executable code")
-
-    def test_v2_reproduces_the_demo_records_exactly(self):
-        from flame import flame_pure_v2 as F2
-        got = [ev["pair"] for ev in F2.compare_iter(self.u1, self.u2, **KW)
-               if ev.get("t") == "pair"]
-        self.assertEqual([(r["label_i"], r["label_j"], r["chain_len"],
-                           r["matched_words"], r["score"]) for r in got],
-                         [(r["label_i"], r["label_j"], r["chain_len"],
-                           r["matched_words"], r["score"]) for r in self.records])
+class TestFrozenFiles(unittest.TestCase):
 
     def test_frozen_files_are_untouched(self):
         """The audit's hard constraint, as a test: the four protected files
-        still match `engine/MANIFEST.sha256`."""
+        still match `engine/MANIFEST.sha256`.  Every fix lives in a `_v2`
+        fork precisely so this keeps passing."""
         import hashlib
         want = {}
         for line in (ENGINE / "MANIFEST.sha256").read_text().splitlines():
@@ -693,6 +660,249 @@ class TestDocstringFork(_Fixture):
                      "data/bpe_vocab.json", "LICENSE"):
             got = hashlib.sha256((ENGINE / name).read_bytes()).hexdigest()
             self.assertEqual(got, want[name], f"{name} is no longer byte-identical")
+
+    def test_frozen_engine_still_drives_the_release(self):
+        """Nothing in the release was rewired to the fork: `demo.py` and both
+        harness copies still import `flame_pure`, so the reported run stays
+        reproducible from the frozen engine."""
+        for path in (ENGINE / "demo.py", ENGINE / "find_text_reuse.py",
+                     ROOT / "scripts" / "find_text_reuse.py"):
+            src = path.read_text(encoding="utf-8")
+            self.assertNotIn("flame_pure_v2", src, f"{path.name} was rewired")
+            self.assertNotIn("bpe_pure_v2", src, f"{path.name} was rewired")
+
+
+# --------------------------------------------------------------------------
+# the fixed fork: what changed, what deliberately did not
+# --------------------------------------------------------------------------
+
+def _fn_asts(src: str) -> dict:
+    """Top-level function name -> AST dump with its docstring stripped."""
+    import ast
+    tree = ast.parse(src)
+    out = {}
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = node.body
+            if (body and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)):
+                node = ast.parse(ast.unparse(node)).body[0]
+                node.body = node.body[1:] or [ast.Pass()]
+            out[node.name] = ast.dump(ast.fix_missing_locations(node))
+    return out
+
+
+class TestFixedFork(_Fixture):
+    """`engine/flame/flame_pure_v2.py` is where the audit's fixes live, since
+    `flame_pure.py` is byte-frozen.  These tests pin both halves of the claim:
+    what the fork changes, and — just as important — what it does not."""
+
+    # The matching stage is what produces the matches, and the audit found it
+    # sound.  Every one of these must stay byte-identical to the frozen engine.
+    UNCHANGED = ("normalize", "_strip_milestones", "_units", "_hashes", "_idf",
+                 "_tfidf", "cosine", "auto_threshold", "_lev_dist",
+                 "levenshtein_ratio", "_word_match", "fuzz_ratio",
+                 "_fuzzy_blocks", "_block_word_maps", "_block_bridge_maps",
+                 "_snippet", "_word_ngrams", "compare")
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from flame import flame_pure_v2
+        cls.F2 = flame_pure_v2
+
+    def test_matching_stage_is_untouched_by_the_fork(self):
+        """The strongest guarantee available without a corpus: every function
+        of the matching pipeline has an identical AST in both modules, so the
+        fork cannot have changed what counts as a match."""
+        a = _fn_asts((ENGINE / "flame" / "flame_pure.py").read_text(encoding="utf-8"))
+        b = _fn_asts((ENGINE / "flame" / "flame_pure_v2.py").read_text(encoding="utf-8"))
+        for name in self.UNCHANGED:
+            self.assertIn(name, a)
+            self.assertIn(name, b)
+            self.assertEqual(a[name], b[name], f"{name}() diverged in the fork")
+        # and exactly one function is allowed to differ, plus one new one
+        differ = {n for n in a if n in b and a[n] != b[n]}
+        self.assertEqual(differ, {"compare_iter"})
+        self.assertEqual(set(b) - set(a), {"build_corpus_index"})
+
+    def test_v2_reproduces_the_frozen_demo_records_exactly(self):
+        """On the demo pair the fixes are inert — same records, same scores.
+        So `scripts/demo_v2.py`'s mode [B] differences are attributable to the
+        cleaning change, not to the engine."""
+        got = [ev["pair"] for ev in self.F2.compare_iter(self.u1, self.u2, **KW)
+               if ev.get("t") == "pair"]
+        self.assertEqual([(r["label_i"], r["label_j"], r["chain_len"],
+                           r["matched_words"], r["score"]) for r in got],
+                         [(r["label_i"], r["label_j"], r["chain_len"],
+                           r["matched_words"], r["score"]) for r in self.records])
+
+    def test_FIX_candidate_retrieval_is_symmetric(self):
+        """Fixes finding 4.  The frozen engine caps side 2's postings only;
+        the fork caps each side by its own unit count and drops a bigram only
+        when it is over-frequent on both, which is invariant under a swap.
+
+        The synthetic pair here is the one `TestDirectionDependence` uses to
+        show the frozen engine failing: 0 candidates one way, 200 the other."""
+        many = [{"label": f"m{k}", "text": "αλφα βητα γαμμα δελτα εψιλον ζητα"}
+                for k in range(200)]
+        one = [{"label": "o", "text": "αλφα βητα γαμμα δελτα εψιλον ζητα"}]
+        kw = dict(KW, min_chain_words=2)
+        def n_cand(F, a, b):
+            return next(ev for ev in F.compare_iter(a, b, **kw)
+                        if ev["t"] == "meta")["n_candidates"]
+        self.assertNotEqual(n_cand(F, one, many), n_cand(F, many, one))
+        self.assertEqual(n_cand(self.F2, one, many), n_cand(self.F2, many, one))
+
+    def test_FIX_corpus_index_makes_score_call_invariant(self):
+        """Fixes finding 5.  The same unit pair must score the same however the
+        call around it is composed — which is what an absolute cross-pair
+        threshold silently assumes."""
+        index = self.F2.build_corpus_index([self.u1, self.u2], ngram=4, n_out=1)
+        def score(units2, **kw):
+            for ev in self.F2.compare_iter(self.u1, units2, **KW, **kw):
+                if ev.get("t") == "pair" and ev["pair"]["label_j"].endswith("#65"):
+                    return ev["pair"]["score"]
+        per_call = {score(self.u2[:c]) for c in (95, 90, 80, 66)}
+        corpus = {score(self.u2[:c], corpus_index=index) for c in (95, 90, 80, 66)}
+        self.assertEqual(len(per_call), 4, "per-call IDF should drift")
+        self.assertEqual(len(corpus), 1, "corpus IDF must not drift")
+        self.assertEqual(corpus, {0.3069})
+
+    def test_FIX_matched_words_j_is_emitted(self):
+        """Fixes finding 11: `cnt_j` was computed and discarded."""
+        for ev in self.F2.compare_iter(self.u1, self.u2, **KW):
+            if ev.get("t") == "pair":
+                p = ev["pair"]
+                self.assertIn("matched_words_j", p)
+                self.assertEqual(p["matched_words_j"], len(p["matched_j"]))
+
+    def test_FIX_silent_behaviour_is_reported(self):
+        """Fixes finding 14.  The clamping still happens — changing it would
+        change results — but `meta` now names it."""
+        meta = next(ev for ev in self.F2.compare_iter(
+            self.u1, self.u2, ngram=99, n_out=99, fuzz_threshold=0.1,
+            min_chain_words=0, max_candidates=4000) if ev["t"] == "meta")
+        self.assertEqual(meta["ngram"], 8)
+        self.assertEqual(meta["clamped"]["ngram"],
+                         {"requested": 99, "used": 8})
+        self.assertEqual(set(meta["clamped"]),
+                         {"ngram", "n_out", "fuzz_threshold", "min_chain_words"})
+        clean = next(ev for ev in self.F2.compare_iter(self.u1, self.u2, **KW)
+                     if ev["t"] == "meta")
+        self.assertEqual(clean["clamped"], {})
+        for key in ("cap_hit", "n_candidates_before_cap", "units_truncated",
+                    "idf_scope", "bpe_trained", "max_candidates"):
+            self.assertIn(key, clean)
+
+    def test_FIX_cap_hit_is_reported(self):
+        meta = next(ev for ev in self.F2.compare_iter(
+            self.u1, self.u2, **dict(KW, max_candidates=3)) if ev["t"] == "meta")
+        self.assertTrue(meta["cap_hit"])
+        self.assertEqual(meta["n_candidates"], 3)
+        self.assertEqual(meta["n_candidates_before_cap"], 10)
+
+    def test_FIX_bpe_load_order(self):
+        """Fixes finding 15: `tokenize_words()` before `load()` returned
+        characters in the frozen module."""
+        import importlib
+        from flame import bpe_pure_v2
+        mod = importlib.reload(bpe_pure_v2)
+        self.assertIsNone(mod._RANKS)
+        self.assertEqual(mod.tokenize_words("λογος")[1], ["λογος</w>"])
+        importlib.reload(bpe_pure_v2).load(force=True)
+
+
+# --------------------------------------------------------------------------
+# the fixed pipeline around the fixed engine
+# --------------------------------------------------------------------------
+
+class TestFixedPipeline(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import find_text_reuse_v2
+        cls.V2 = find_text_reuse_v2
+
+    def test_FIX_apparatus_tokens_are_stripped(self):
+        """Fixes finding 12.  The frozen `_clean_text` leaves 255 bare numerals
+        and 476 Latin tokens in the Proclus sample; the v2 cleaning removes
+        them — and, because the word stream shortens, re-phases the windows."""
+        data = json.loads((SAMPLES / "proclus_in_rem_publicam_101r.json")
+                          .read_text(encoding="utf-8"))
+        raw = " ".join(s["text"] for s in data["segments"])
+        cleaned = self.V2.clean_text(raw, strip_apparatus=True)
+        words = F._WORD_RE.findall(F._strip_milestones(cleaned))
+        self.assertEqual([w for w in words if w.isdigit()], [])
+        self.assertEqual([w for w in words if w.isascii() and w.isalpha()], [])
+        # the frozen path is unchanged and still carries them
+        frozen = F._WORD_RE.findall(F._strip_milestones(H._clean_text(raw)))
+        self.assertEqual(sum(1 for w in frozen if w.isdigit()), 255)
+
+    def test_apparatus_strip_is_off_for_non_greek_segments(self):
+        """The guard that makes the strip safe: a majority-Latin segment keeps
+        its Latin words, so the filter cannot eat a Latin work."""
+        latin = "omnis homo naturaliter scire desiderat signum autem est"
+        self.assertFalse(self.V2.is_greek_segment(latin))
+        self.assertEqual(self.V2.clean_text(latin, True), latin)
+
+    def test_FIX_windows_rephase_under_the_strip(self):
+        """The cost of finding 12's fix, stated as a test: every `#k` label
+        moves, so no positional reference survives it."""
+        frozen = self.V2.build_units(SAMPLES / "proclus_in_rem_publicam_101r.json",
+                                     "x", strip_apparatus=False)
+        fixed = self.V2.build_units(SAMPLES / "proclus_in_rem_publicam_101r.json",
+                                    "x", strip_apparatus=True)
+        self.assertEqual(len(frozen), 95)
+        self.assertEqual(len(fixed), 92)
+        self.assertNotEqual(frozen[64]["text"], fixed[64]["text"])
+
+    def test_build_units_without_strip_matches_the_frozen_harness(self):
+        """With the strip off, the v2 harness reproduces the frozen units
+        exactly — so the strip is the only cleaning difference."""
+        for name in ("plato_respublica_598.json",
+                     "proclus_in_rem_publicam_101r.json"):
+            a = H.build_units(SAMPLES / name, "x")
+            b = self.V2.build_units(SAMPLES / name, "x", strip_apparatus=False)
+            self.assertEqual(a, b, name)
+
+    def test_v2_outputs_do_not_overwrite_released_artefacts(self):
+        """The audit's other hard constraint: the fixed pipeline writes beside
+        the release, never over it."""
+        import find_text_reuse_v2 as V2
+        import filter_by_wp_v2 as W2
+        self.assertEqual(V2.DEFAULT_OUT_DIR, ROOT / "logs" / "v2")
+        self.assertEqual(W2.DEFAULT_OUT, ROOT / "logs" / "clean_by_wp_v2")
+        self.assertTrue((ROOT / "logs" / "text_reuse_matches.ndjson").is_file())
+
+
+class TestFixedWorkPackageFilter(unittest.TestCase):
+    """`scripts/filter_by_wp_v2.py` on the released data: with no run
+    provenance beside it, the score scale is per-call, so the absolute gate is
+    switched off and the counts revert to what chain length alone selects."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "scripts"))
+
+    def test_score_scope_detected_as_per_call_for_the_released_sweep(self):
+        import filter_by_wp_v2 as W2
+        scope, _ = W2.detect_score_scope(
+            ROOT / "logs" / "overlap_filter_global" / "byz_byz_tagged.tsv")
+        self.assertEqual(scope, "call")
+
+    def test_counts_without_the_cross_pair_score_gate(self):
+        import filter_by_wp_v2 as W2
+        df = W2.load_base(ROOT / "logs" / "overlap_filter_global"
+                          / "byz_byz_tagged.tsv")
+        expect = {"wp1_implicit": (19, 7), "wp2_canon": (33, 14),
+                  "wp3_explicit": (693, 678)}
+        for key, cfg in W2.WP.items():
+            out, _ = W2.filter_wp(df, cfg, "none", 0.0)
+            gated, _ = W2.filter_wp(df, cfg, "absolute", 0.0)
+            self.assertEqual((len(out), len(gated)), expect[key], key)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,23 @@
-# Unapplied patches from the 2026-09-19 engine audit
+# Patches from the first pass of the 2026-09-19 engine audit
 
-**None of these is applied.** Each one either changes a number the paper
-reports (class C) or touches a file that the release freezes (class B against
-`scripts/find_text_reuse.py`). They are kept here so the decision is about a
-concrete diff rather than a description. Findings, measurements and impact
-estimates: [`../../AUDIT.md`](../../AUDIT.md).
+> **Superseded — read this first.** These diffs were written before the fixes
+> were implemented. The fixes now live in the v2 pipeline
+> ([`../../PIPELINE_V2.md`](../../PIPELINE_V2.md)), which is what to run and
+> what the tests pin. The patches are kept for two reasons: each is a minimal,
+> reviewable statement of one change, and one of them records an option the
+> implementation **rejected on measurement**.
+>
+> | patch | status |
+> |---|---|
+> | `B2_B3_run_provenance_and_warnings.patch` | **implemented** in `scripts/find_text_reuse_v2.py` (`check_run_config`, `write_run_meta`, `report_diagnostics`) and in `flame_pure_v2`'s `meta` |
+> | `C1_df_cap_symmetric.patch` | **rejected as written.** Sizing the cap from `min(n1, n2)` is direction-free but drops 44–76% of candidates. `flame_pure_v2` instead caps each side by its own unit count and drops a bigram only when it is over-frequent on both — also direction-free, and a strict *superset* of the frozen engine's forward direction (0 candidates lost). |
+> | `C2_strip_apparatus_tokens.patch` | **implemented** in `find_text_reuse_v2.clean_text()`, with a majority-Greek guard so the filter cannot eat a Latin work |
+> | `C5_score_gate_not_cross_pair.patch` | **implemented differently.** The patch always applies a within-pair percentile; `scripts/filter_by_wp_v2.py` instead reads the run's provenance and picks — absolute gate when the scores came from a corpus-level IDF, no gate when they are per-call. The percentile is still available as `--score-mode percentile`. |
+
+**None of these is applied to the frozen files.** Each one either changes a
+number the paper reports (class C) or touches a file that the release freezes
+(class B against `scripts/find_text_reuse.py`). Findings, measurements and
+impact estimates: [`../../AUDIT.md`](../../AUDIT.md).
 
 All four apply cleanly from the repository root:
 

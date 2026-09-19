@@ -10,6 +10,19 @@ exact file that ran, byte-for-byte.
 This is **not** the public [`github.com/kreeedit/FLAME`](https://github.com/kreeedit/FLAME)
 tool — see [Relationship to the public FLAME tool](#relationship-to-the-public-flame-tool).
 
+> **Audited 2026-09-19.** Several statements in this file were wrong and are
+> marked *(corrected 2026-09-19)* where they occur. The full finding list, with
+> the measurement behind each one, is [`../AUDIT.md`](../AUDIT.md); the fixes
+> live in a parallel `_v2` pipeline described in
+> [`../PIPELINE_V2.md`](../PIPELINE_V2.md), and `tests/test_flame.py` pins the
+> behaviour of both. **Nothing in this package changed behaviour**:
+> `flame/flame_pure.py`, `flame/bpe_pure.py`, `data/bpe_vocab.json` and
+> `LICENSE` are still byte-identical to their KONI sources, `demo.py` still
+> loads the frozen engine and still reproduces the chain-53 anchor, and the
+> reported numbers are untouched. Only prose in this file and in `../README.md`
+> was edited; both `MANIFEST.sha256` files were regenerated accordingly and the
+> pre-edit hashes are recorded in `../AUDIT.md`.
+
 > **Note for anyone reading the manuscript alongside this code.** The three
 > phases described in §4 of the shipped draft
 > (`../docs/Eustratius_Implicit_Authority_Paper_Draft.md:125-131`, repeated in
@@ -26,7 +39,11 @@ tool — see [Relationship to the public FLAME tool](#relationship-to-the-public
 > The authoritative description of the engine that produced the reported numbers
 > is [What the engine actually does](#what-the-engine-actually-does) below. §4
 > should be rewritten from it — do not treat §4 as a specification of this
-> package. A *later*, unshipped draft
+> package. **A replacement §4, written from the measured behaviour, now exists
+> at [`../docs/Section4_FLAME_rewritten.md`](../docs/Section4_FLAME_rewritten.md)**;
+> it sits beside the drafts rather than over them, because two of its
+> corrections (the candidate cap and the score gates) reach into §5. A *later*,
+> unshipped draft
 > (`../../pilot_cases_for_jonathan/Eustratius_Implicit_Authority_Paper_Draft_v0.4.md:118`)
 > adds a fork disclaimer, but its specifics are inverted too: it says the fork's
 > Phase 2 "uses hash-collision clustering rather than the TF-IDF/cosine-similarity
@@ -148,18 +165,35 @@ effect — see the note below):
 python scripts/find_text_reuse.py --max-candidates 1000
 ```
 
-> **One parameter is not pinned down.** The code default is `max_candidates=4000`
-> and the paper draft states "default 4,000", but the sweep commands recorded in
-> the project log carry `--max-candidates 1000`, and **no artefact of the run
-> records which value was in effect**: the report header logged `ngram`, `n_out`,
-> `fuzz`, `min_chain` only, and `logs/text_reuse_matches.ndjson` carries no
-> run-parameter metadata. Before this parameter is cited, it should either be
-> recovered from the run environment or the sweep re-run with an explicit value.
-> A fresh sweep with the shipped harness now writes `max_candidates` into the
-> report header, so the ambiguity cannot recur *for new runs*.
+> **`max_candidates` was 1000.** *(Corrected 2026-09-19. This paragraph
+> previously said no artefact of the run records which value was in effect. One
+> does — indirectly but decisively.)*
 >
-> `demo.py` runs with the code default, `max_candidates=4000` — that is the
-> default, not a recovered production value.
+> A record can only exist for a candidate that was actually evaluated, so
+> records-per-work-pair is bounded above by `max_candidates`. Across all 376
+> populated pairs the maximum is **exactly 1000**, none exceeds it, and the pair
+> that reaches it — Arethas, *Scholia in Porphyrii Isagoge* × *Scholia in
+> Categorias*, a near-duplicate pair whose scores reach 1.0 — carries the
+> truncation signature: **its chain lengths start at 19**, whereas every
+> unsaturated pair is dominated by chains of 4 to 8 (the next-largest pair, 965
+> records, has 99 records at chain 4). That is rank truncation at 1000, and it
+> matches the `--max-candidates 1000` recorded in the project log.
+>
+> At this scale the value is not fine-tuning. Measured on three real Greek work
+> pairs of comparable size to the corpus's largest, the candidate sets run to
+> **3,617 / 6,707 / 11,574**, so a cap of 1000 retains 28% / 15% / 9% of them; at
+> record level on Herodotus × Thucydides it yields 103 records where 4000 yields
+> 304. The cap is therefore a recall parameter and must be stated in any citation
+> of the run.
+>
+> A fresh sweep with the shipped harness writes `max_candidates` into the report
+> header; `scripts/find_text_reuse_v2.py` additionally writes a
+> `text_reuse_matches.meta.json` sidecar and warns on every pair where the cap
+> actually bit, so the ambiguity cannot recur.
+>
+> `demo.py` runs with the code default, `max_candidates=4000`. On the demo pair
+> only 10 candidates exist, so the difference is inert there — but it means the
+> demo does **not** run the production value.
 
 ## Reproducibility: what you can and cannot do from here
 
@@ -226,7 +260,7 @@ is what makes the released tables look internally inconsistent:
 |---|---|
 | `chain_len` | matched word **pairs** in the single longest kept block — the same number on both sides, because a block is a strictly monotone diagonal pairing (`matches` is built as `(s+k, s+k+d)`, so each side contributes exactly `n` distinct, increasing indices). *Not* an n-gram chain length, despite the name. |
 | `matched_words` | **total** matched words on the **i side** across **every** kept block of that record. Not a symmetric count — see below. |
-| `matched_words_j` | the same for the **j side**. Added by this release; the archived full sweep predates it, so there it is absent and the report prints `–` rather than a fabricated `0`. |
+| `matched_words_j` | the same for the **j side**. `flame_pure` computes this count (`cnt_j`) and discards it, so this release's harness re-derives it from the `matched_j` map; `flame_pure_v2` emits it directly. Either way the archived full sweep predates the field — **0 of its 35,753 records carry it** — so there it is absent and the report prints `–` rather than a fabricated `0`. |
 | `n_chained` | how many blocks survived the filter (`core >= ngram` **and** `n >= min_chain_words`). |
 | `word_range_i/j` | full extent of the match on each side — first→last matched word, **internal gaps included**. |
 | `score` | TF-IDF cosine of the unit pair. Candidate selection only; it never orders or gates. |
@@ -261,17 +295,53 @@ prints all of these plus `blocks` so the ordering is visible rather than implied
 
 ## Known caveats
 
-- **Silent degradation without the BPE model.** If `data/bpe_vocab.json` is
-  missing or unreadable, `bpe_pure.load()` falls back to empty merges and the
-  engine switches to plain normalized-word hashing — no subword tokenization, no
-  stop-word filtering — while still returning plausible matches and printing
-  nothing. `demo.py` checks for this and refuses to run; any other caller should
-  too.
+- **Without the BPE model the `score` is invalid — the match set is not.**
+  *(Corrected 2026-09-19; the earlier wording, "silent degradation … while still
+  returning plausible matches", implied a degraded set of matches. It is not.)*
+  If `data/bpe_vocab.json` is missing or unreadable, `bpe_pure.load()` falls back
+  to empty merges and the engine switches to plain normalized-word hashing. What
+  that changes is the TF-IDF cosine, and nothing else: both branches tokenize
+  words with the same `\b\w+\b` pattern, so candidate retrieval and Levenshtein
+  alignment receive identical input, and the similarity gate is 0.0, which every
+  score passes. Measured on the demo pair and on a real 1,609 × 1,306-window
+  pair, trained and untrained runs return **identical records field for field**
+  — labels, `chain_len`, `matched_words`, blocks, word ranges, snippets — and
+  only `score` moves; at scale the score *ranking* moves too. So a missing model
+  invalidates every score-derived claim while leaving recall untouched.
+  `demo.py` still refuses to run without it, which is right for a different
+  reason than the one previously given. See [`../AUDIT.md`](../AUDIT.md),
+  finding 1.
+- **Candidate retrieval is directional: `compare(A, B) ≠ compare(B, A)`.**
+  `df_cap = max(40, int(0.04 * n2))` prunes the inverted index built over
+  `sections2` only — side 1's bigrams carry no frequency cap, and the cap's value
+  depends on `n2`. Measured on Herodotus × Thucydides at production scale:
+  **3,617 vs 8,402 candidates** (Jaccard 0.264) and, run to completion,
+  **304 vs 515 records** — 6 vs 12 at `chain ≥ 6`. Where a record exists in both
+  directions its content is identical, so this is purely a recall effect: it
+  decides which unit pairs are looked at, never what is found in one. The sweep's
+  `i < j` enumeration fixes one direction per work pair by the corpus's
+  chronological sort order. Fixed in `flame/flame_pure_v2.py`; see
+  [`../PIPELINE_V2.md`](../PIPELINE_V2.md).
+- **`score` is normalized per call, so it is not comparable between work
+  pairs.** `_idf(counters1 + counters2)` runs once per `compare_iter` call, and
+  the vocabulary and hash base are built the same way — so the hash *values*
+  differ between calls too. In an all-pairs sweep that means one scale per work
+  pair; in the released data the per-pair score maximum ranges from 0.0000 to
+  1.0000. This matters because `../scripts/filter_by_wp.py` applies absolute
+  gates (`score >= 0.001`, `>= 0.01`) across all pairs: they drop 12 of WP1's 19
+  chain-≥6 candidates and 19 of WP2's 33, so the reported **7** and **14** are
+  mostly the gate's doing rather than chain length's. `compute_reported_numbers.py`
+  itself never reads `score`. Fixed in `flame_pure_v2.build_corpus_index()`.
 - **`bpe_pure.tokenize_words()` before `load()`** returns character-level symbols
   instead of subword symbols (a latent ordering bug in `bpe_pure.py`, harmless in
   the production path because `flame_pure._units()` calls `is_trained()` first).
+  Fixed in `flame/bpe_pure_v2.py`.
 - **No internal logging.** The engine emits no warnings or diagnostics; a
-  misconfiguration is visible only in its output.
+  misconfiguration is visible only in its output. In particular `ngram`, `n_out`,
+  `min_chain_words` and `fuzz_threshold` are **clamped, not validated** — asking
+  for `ngram=99` silently gets 8 — and `CAP_WORDS = 400` truncates over-long
+  units. Neither bites under this harness (its windows are 140 words), but both
+  are traps for any other caller. `flame_pure_v2` reports all of it in `meta`.
 - **Nothing pins the corpus version in the artefacts themselves.** The era labels
   and every `word_range` come from the corpus build, so a corpus fix (such as the
   apparatus strip below) moves the `#k` labels *and* the word offsets without
@@ -302,19 +372,32 @@ prints all of these plus `blocks` so the ordering is visible rather than implied
   the body text**, not in a separate field: `… ἦθος [p. 605a], ἀπανοὐδετέρα
   3 6 nempe ἄλλῃ 7 ἔχει 11 cf. Δ 104 16 etc. ξ 421 π 898 13 ἀφορί 603e sqq.
   18 possis 〈κατὰ〉 τὸ γ 146 etc. … τησόμεθα …`. That injects Latin apparatus
-  words, manuscript sigla and bare line numbers into the Greek word stream
-  (≈0.5% of its 198,474 words are apparatus tokens; 6,618 bare numbers). It is a
-  corpus-construction defect upstream of FLAME, and it costs both recall and
-  score. Measured on the demo by stripping the apparatus runs (137 tokens, 1.3%
-  of the text): the `#64`/`#65` records **merge into a single chain of 57** (was
-  29 and 53), and the `#36` record rises from 90 to **103** matched words and
-  from 0.4373 to **0.5684** score. Only 1 of the 36 corpus works is affected, but
-  it is the largest, and the fix belongs in the corpus builder (where the
-  apparatus column is still identifiable), not in a regex over the finished
-  text: a stripper clean enough to be safe here also removed a handful of
-  genuine Greek words (≈8–10 per 10,878). Note also that **any change to this
-  text re-phases the windows**, so it invalidates every `#k` reference and the
-  anchor asserted below — it is a re-run of the sweep, not a patch.
+  words, manuscript sigla and bare line numbers into the Greek word stream.
+  *(Contamination figures corrected 2026-09-19. This paragraph used to say
+  "≈0.5% of its 198,474 words are apparatus tokens; 6,618 bare numbers" — the
+  two cannot both hold, since 6,618 of 198,474 is 3.3%.)* Measured on the
+  shipped sample **after** `_clean_text()` has run: of 10,715 tokens, **255 are
+  bare numerals (2.4%)** and **476 are Latin-script (4.4%)** — `Pl`×45, `f`×38,
+  `ex`×29, `cf`×25, `p`×24, `ss`×22. The cleaning stage removes 87 tokens there
+  and not one of the numerals. This matters because `fuzz_threshold = 0.75`
+  matches numerals to each other: `103 ~ 104` and `605 ~ 603` both score 0.833.
+  It is a corpus-construction defect upstream of FLAME, and it costs both recall
+  and score.
+  *(Effect figures corrected 2026-09-19.)* Applying a principled token filter —
+  drop bare numerals and Latin-script tokens from majority-Greek segments,
+  implemented as `scripts/find_text_reuse_v2.py`'s cleaning and runnable via
+  `python3 scripts/demo_v2.py` — the Proclus unit goes from 95 to 92 windows
+  (−434 words, −3.3%) and the `#36` record rises from 90 to **104** matched words
+  and from 0.4373 to **0.5708** score, close to this paragraph's earlier
+  hand-stripped 103 / 0.5684. But the `#64`/`#65` records do **not** merge:
+  they stay separate at 29 and 53. The "single chain of 57" reported here
+  earlier is reproducible only from that hand-made strip, not from a rule, and
+  should not be cited. Only 1 of the 36 corpus works is affected, but it is the
+  largest, and the fix belongs in the corpus builder (where the apparatus column
+  is still identifiable) rather than in a regex over the finished text. Note
+  also that **any change to this text re-phases the windows**, so it invalidates
+  every `#k` reference and the anchor asserted below — it is a re-run of the
+  sweep, not a patch.
 - **`engine/` and `scripts/find_text_reuse.py` both resolve `ROOT` to the release
   root**, so both would write to the same `logs/` paths. `engine/find_text_reuse.py`
   is the localized copy (bundled engine, no KONI checkout needed); treat it as the

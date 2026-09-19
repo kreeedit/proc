@@ -1,29 +1,66 @@
 """Flame text-reuse engine — pure Python, TWO-PHASE, zero dependencies.
 
-DOCSTRING-ONLY FORK of `flame_pure.py` (class A of the 2026-09-19 audit).
-========================================================================
-Every executable statement is byte-for-byte the statement of
-`flame_pure.py`; only docstrings and comments differ.  **No reported metric
-changes**: the record sets, `chain_len`, `matched_words`, `score` and the
-emission order are identical, and `tests/test_flame.py` asserts that the two
-modules compile to the same AST once docstrings are stripped.
+FIXED FORK of `flame_pure.py` — v2 of the 2026-09-19 audit (`../../AUDIT.md`).
+=============================================================================
+`flame_pure.py`, `bpe_pure.py`, `data/bpe_vocab.json` and `LICENSE` are
+byte-identical to their KONI sources and the release advertises that with
+`cmp` + `MANIFEST.sha256`, so none of the fixes below could be applied there.
+This fork is where they live. The frozen engine is untouched and the reported
+run remains reproducible from it.
 
-`flame_pure.py` is byte-identical to its KONI source and must stay so, which
-is why the corrections below could not be applied there.  This file is not
-imported by `demo.py`, `find_text_reuse.py` or the reported run — it exists so
-the corrected description lives next to the code rather than only in
-`AUDIT.md`.
+**The reported numbers do not change by themselves.** Nothing in the release
+imports this module: `demo.py`, `engine/find_text_reuse.py` and
+`scripts/find_text_reuse.py` all still load `flame_pure`. The fixed pipeline
+is `scripts/find_text_reuse_v2.py` + `scripts/demo_v2.py`, and the paper's
+figures only move if someone re-runs the 406-pair sweep with it — which needs
+the TLG-derived corpus that is not in this release.
 
-What the engine actually does
------------------------------
-Phase 1 (candidate scoring): BPE subword → leave-n-out rolling hash → TF-IDF →
-cosine. The IDF is recomputed **per `compare_iter` call**, from the units of
-that call only, so the resulting `score` is comparable *within* one call and
-**not** between calls — i.e. not between work pairs of a sweep.  The cosine is
-carried on the record but reads nowhere: the candidate order is the shared
-word-bigram count, and the similarity gate defaults to `None` → `0.0`, which
-every non-negative score passes.  Phase 1 therefore neither ranks nor gates;
-without the BPE model the match set is unchanged and only `score` moves.
+What changed, and what it costs
+-------------------------------
+1. **Symmetric candidate pruning** (audit finding 4). `flame_pure` skips a
+   bigram when its *side-2* posting list exceeds `max(40, 0.04*n2)`; side 1 is
+   uncapped, so `compare(A, B)` != `compare(B, A)` — measured at 3,617 vs
+   8,402 candidates and 6 vs 12 records at `chain >= 6` on one real pair. Here
+   each side has its own cap and a bigram is dropped only when it is
+   over-frequent on **both**. Result: forward == reverse exactly, and a strict
+   *superset* of the shipped forward direction (0 candidates lost on three
+   real pairs at production scale). Ties in the candidate ranking break on
+   `(i, j)` so the `max_candidates` truncation point is reproducible too.
+2. **Corpus-level TF-IDF** (audit finding 5), opt-in via `corpus_index=`.
+   `flame_pure` derives vocabulary, hash base and IDF from the two works of
+   the current call, so `score` sits on a different scale for every work pair
+   — yet `scripts/filter_by_wp.py` thresholds it across pairs and that gate,
+   not chain length, decides the reported WP1 = 7 and WP2 = 14. Build the
+   index once with `build_corpus_index()` and every `score` in the sweep
+   becomes comparable. Without the argument the per-call behaviour is
+   unchanged, so this is a drop-in.
+3. **`matched_words_j` is emitted** (finding 11) — it was computed and
+   discarded, and no released record carries it.
+4. **Silent behaviour is reported, not changed** (finding 14): `meta` now
+   carries `clamped` (every parameter the engine overrode), `cap_hit` and
+   `n_candidates_before_cap`, `units_truncated` (CAP_WORDS), and
+   `bpe_trained`. The clamping itself still happens — changing it would change
+   results.
+5. Imports `bpe_pure_v2`, which fixes the `tokenize_words()`-before-`load()`
+   ordering bug (finding 15).
+
+Deliberately NOT changed: the Levenshtein predicate, the block builder, the
+`core >= ngram and n >= min_chain_words` filter, the emission order, and the
+windowing. Those produce the matches, and the audit found them sound —
+`_word_match`'s length prune never rejects a passing pair (20,000 random pairs
+x 5 thresholds, 0 disagreements) and every block is a strictly increasing 1:1
+pairing on a single diagonal (78,713 blocks, 0 violations).
+
+What the engine does
+--------------------
+Phase 1 (candidate retrieval + scoring): an inverted index over normalized
+word **bigrams** proposes unit pairs (`min_shared=3` shared bigrams), ordered
+by shared-bigram count. Each pair then gets a TF-IDF cosine over leave-n-out
+rolling hashes of its BPE subword n-grams. That cosine is reported as `score`
+but **neither orders nor gates** anything: the order is the bigram count, and
+the similarity gate defaults to `None` → `0.0`, which every non-negative score
+passes. Consequence, measured: with the BPE model absent the match set is
+bit-identical and only `score` moves.
 
 Phase 2 (local matching): cleaned text → stripGreek-normalized WORD lists →
 pure-Python Levenshtein-tolerant matching blocks
@@ -33,22 +70,17 @@ contiguous core >= ngram AND total matched words >= min_chain_words).
 
 The word lists come from `re.findall(r'\\b\\w+\\b')` in **both** branches: with
 a trained BPE model via `bpe_pure.tokenize_words()`, without one via the
-regex here.  The two branches differ only in `subs` (the cosine's input).
+regex here. The two branches differ only in `subs` (the cosine's input) —
+which is exactly why the BPE model cannot change what is matched.
 
 Matching runs DIRECTLY on the word lists, so hit indices ARE real word
 indices → the frontend green-verbatim / brown-bridge highlights land on the
-actual words with zero visual drift.  Short particle matches (τε, καὶ, δὲ) are
+actual words with zero visual drift. Short particle matches (τε, καὶ, δὲ) are
 killed by **`core >= ngram` alone**: `fuzz_threshold=0.75` *admits* them
-(τε~τε, δε~τε and το~τω all pass), and what removes them is the requirement of
-a contiguous run at least `ngram` words long.  Real morphological reuse across
-inflections (Ionic ποταμόν ↔ Attic ποταμὸς) survives the same filter because
-such runs are long enough.
-
-`compare_iter` is **not symmetric**: `df_cap = max(40, int(0.04 * n2))` prunes
-the inverted index built over `sections2` only, and side 1's bigrams carry no
-frequency cap, so `compare(A, B)` and `compare(B, A)` return different match
-sets.  Measured on real Greek at production scale: 3,617 vs 8,402 candidates
-on the same work pair.
+(δε~τε and το~τω both sit exactly on 0.75), and what removes them is the
+requirement of a contiguous run at least `ngram` words long. Real
+morphological reuse across inflections (Ionic ποταμόν ↔ Attic ποταμὸς)
+survives the same filter because such runs are long enough.
 
 NO external deps — Levenshtein is hand-rolled (stdlib only): no rapidfuzz,
 no numpy. NO agglomerative chaining. NO hapax/archaism.
@@ -63,7 +95,7 @@ import unicodedata
 from collections import Counter
 from functools import lru_cache
 
-from . import bpe_pure
+from . import bpe_pure_v2 as bpe_pure
 
 NGRAM = 4
 N_OUT = 1
@@ -385,13 +417,53 @@ def _word_ngrams(words: list[str], n: int):
     return [tuple(words[k:k + n]) for k in range(len(words) - n + 1)]
 
 
+def build_corpus_index(sections_by_work, ngram: int = NGRAM,
+                       n_out: int = N_OUT) -> dict:
+    """Corpus-level vocabulary + hash base + IDF, for `compare_iter(corpus_index=)`.
+
+    Pass an iterable of per-work section lists (the same dicts the harness
+    hands to `compare_iter`). Every unit of every work contributes once, so
+    the IDF — and therefore every `score` computed from it — is on **one**
+    scale for the whole sweep, which is what makes cross-pair thresholds and
+    cross-pair "strongest match" claims meaningful.
+
+    Returns `{"vocab", "base", "oov", "idf", "n_units", "n_works", "ngram",
+    "n_out"}`. The hash base is part of the index on purpose: `base` is a
+    function of the vocabulary size, so two calls with different vocabularies
+    produce different hash *values* for the same text and their IDFs would not
+    be comparable even if both were corpus-wide.
+
+    Cost: one `_units()` + `_hashes()` pass over the corpus. The sweep already
+    pays that per pair (29 works x 28 appearances each in the reported run),
+    so this is cheaper than what it replaces, not an addition.
+    """
+    ngram = max(2, min(8, int(ngram)))
+    n_out = max(0, min(2, int(n_out)))
+    works = [_units(s) for s in sections_by_work]
+    vocab: dict[str, int] = {}
+    for w in works:
+        for _, _, _, subs, _ in w:
+            for s in subs:
+                if s not in vocab:
+                    vocab[s] = len(vocab)
+    oov = len(vocab)            # reserved id for a subword unseen at build time
+    base = len(vocab) + 1       # > every id, exactly as in the per-call path
+    counters = [Counter(_hashes([vocab.get(s, oov) for s in subs],
+                                base, ngram, n_out))
+                for w in works for _, _, _, subs, _ in w]
+    return {"vocab": vocab, "base": base, "oov": oov, "idf": _idf(counters),
+            "n_units": len(counters), "n_works": len(works),
+            "ngram": ngram, "n_out": n_out}
+
+
 def compare_iter(sections1: list[dict], sections2: list[dict],
                  ngram: int = NGRAM, n_out: int = N_OUT,
                  min_chain_words: int = MIN_CHAIN_WORDS,
                  fuzz_threshold: float = FUZZ_THRESHOLD,
                  similarity_threshold: float | None = None,
                  min_shared: int = 3, max_candidates: int = 4000,
-                 progress_every: int = 150):
+                 progress_every: int = 150,
+                 corpus_index: dict | None = None):
     """Streaming Flame: same two-phase algorithm as compare(), but YIELDS
     events so the UI can render incrementally instead of waiting for the whole
     job. Events (dicts):
@@ -415,14 +487,35 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         then never used (applying it would drop 3 of the demo pair's 5
         records).
     """
+    # FIX (AUDIT finding 14): the clamping stays — changing it would change
+    # results — but it is no longer silent.  `meta["clamped"]` names every
+    # parameter the engine overrode, so a misconfigured run is visible in its
+    # own output instead of only in a careful reading of the source.
+    requested = {"ngram": ngram, "n_out": n_out,
+                 "min_chain_words": min_chain_words,
+                 "fuzz_threshold": fuzz_threshold}
     ngram = max(2, min(8, int(ngram)))
     n_out = max(0, min(2, int(n_out)))
     min_chain_words = max(1, int(min_chain_words))
     fuzz_threshold = max(0.5, min(1.0, float(fuzz_threshold)))
+    effective = {"ngram": ngram, "n_out": n_out,
+                 "min_chain_words": min_chain_words,
+                 "fuzz_threshold": fuzz_threshold}
+    clamped = {k: {"requested": requested[k], "used": effective[k]}
+               for k in effective if requested[k] != effective[k]}
 
     u1 = _units(sections1)
     u2 = _units(sections2)
     n1, n2 = len(u1), len(u2)
+    # FIX (AUDIT finding 14): CAP_WORDS truncation is reported rather than
+    # silent.  Inert under `find_text_reuse.py` (its windows are 140 words),
+    # but any other caller passing longer sections lost their tails unseen.
+    truncated = (sum(1 for s in sections1[:CAP_SECTIONS]
+                     if len(_WORD_RE.findall(_strip_milestones(s["text"]))) > CAP_WORDS)
+                 + sum(1 for s in sections2[:CAP_SECTIONS]
+                       if len(_WORD_RE.findall(_strip_milestones(s["text"]))) > CAP_WORDS))
+    dropped_sections = (max(0, len(sections1) - CAP_SECTIONS)
+                        + max(0, len(sections2) - CAP_SECTIONS))
 
     meta = {
         "t": "meta", "n1": n1, "n2": n2, "n_pairs_total": n1 * n2,
@@ -430,7 +523,14 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         "threshold": 0.0, "used_threshold": 0.0, "auto_threshold_disabled": True,
         "ngram": ngram, "n_out": n_out, "min_chain_words": min_chain_words,
         "fuzz_threshold": round(fuzz_threshold, 4),
-        "mode": "two-phase (inverted n-gram index -> TF-IDF + Levenshtein word-block, streaming)",
+        "clamped": clamped,
+        "max_candidates": max_candidates, "min_shared": min_shared,
+        "cap_hit": False, "units_truncated": truncated,
+        "sections_dropped": dropped_sections,
+        "idf_scope": "corpus" if corpus_index else "call",
+        "bpe_trained": bpe_pure.is_trained(),
+        "engine": "flame_pure_v2",
+        "mode": "two-phase (symmetric inverted bigram index -> TF-IDF + Levenshtein word-block, streaming)",
     }
     if not n1 or not n2:
         yield meta
@@ -438,40 +538,110 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
         return
 
     # BPE-subword TF-IDF (scores candidates; does NOT gate recall)
-    vocab: dict[str, int] = {}
-    for _, _, _, subs, _ in u1 + u2:
-        for s in subs:
-            if s not in vocab:
-                vocab[s] = len(vocab)
-    base = len(vocab) + 1
-    counters1 = [Counter(_hashes([vocab[s] for s in subs], base, ngram, n_out))
+    #
+    # FIX (AUDIT finding 5): the vocabulary, the hash base and the IDF may now
+    # come from a CORPUS-level index instead of being rebuilt per call.
+    #
+    # In `flame_pure.py` all three are derived from `u1 + u2` — the units of
+    # this call alone.  In an all-pairs sweep that means once per work pair, so
+    # the emitted `score` sits on a different scale for every pair and cannot
+    # be thresholded or ranked across pairs.  It nonetheless was: the absolute
+    # `score >= 0.001` / `>= 0.01` gates in `scripts/filter_by_wp.py` decide
+    # the reported WP1 = 7 and WP2 = 14 (they drop 12 of 19 and 19 of 33).
+    #
+    # Note the vocabulary matters as much as the IDF: `base = len(vocab) + 1`,
+    # so the hash VALUES themselves differ between calls.  A shared IDF is only
+    # meaningful on top of a shared vocabulary, which is why the two travel
+    # together in one index object.
+    #
+    # `corpus_index=None` keeps the per-call behaviour, so this fork stays a
+    # drop-in for any caller that has not built an index.
+    if corpus_index:
+        vocab = corpus_index["vocab"]
+        base = corpus_index["base"]
+        oov = corpus_index["oov"]
+        idf = corpus_index["idf"]
+        idf_scope = "corpus"
+    else:
+        vocab = {}
+        for _, _, _, subs, _ in u1 + u2:
+            for s in subs:
+                if s not in vocab:
+                    vocab[s] = len(vocab)
+        base = len(vocab) + 1
+        oov = len(vocab)
+        idf = None
+        idf_scope = "call"
+    counters1 = [Counter(_hashes([vocab.get(s, oov) for s in subs],
+                                 base, ngram, n_out))
                  for _, _, _, subs, _ in u1]
-    counters2 = [Counter(_hashes([vocab[s] for s in subs], base, ngram, n_out))
+    counters2 = [Counter(_hashes([vocab.get(s, oov) for s in subs],
+                                 base, ngram, n_out))
                  for _, _, _, subs, _ in u2]
-    idf = _idf(counters1 + counters2)
+    if idf is None:
+        idf = _idf(counters1 + counters2)
 
     # Phase 1: inverted-index candidate generation on word BIGRAMS (robust to
     # Ionic/Attic spelling drift; trigrams are too brittle for that)
     wn = 2
+    grams1 = [_word_ngrams(u[2], wn) for u in u1]
     grams2 = [_word_ngrams(u[2], wn) for u in u2]
     inv: dict[tuple, list[int]] = {}
     for j, gs in enumerate(grams2):
         for g in set(gs):
             inv.setdefault(g, []).append(j)
-    df_cap = max(40, int(0.04 * n2))
+    # FIX (AUDIT finding 4): SYMMETRIC frequency pruning.
+    #
+    # `flame_pure.py` computes `df_cap = max(40, int(0.04 * n2))` and drops a
+    # bigram when its **side-2** posting list is longer than that.  Side 1's
+    # bigrams carry no cap at all, and the cap's value depends on n2 — so
+    # `compare(A, B)` and `compare(B, A)` prune different bigrams and return
+    # different match sets.  Measured on Herodotus x Thucydides: 3,617 vs
+    # 8,402 candidates (Jaccard 0.264), 304 vs 515 records, 6 vs 12 records at
+    # `chain >= 6`.
+    #
+    # The fix keeps the guard's purpose — do not walk a posting list for a
+    # bigram that is boilerplate on BOTH sides — while making the predicate
+    # invariant under swapping the arguments: each side gets its own cap from
+    # its own unit count, and the bigram is skipped only when it exceeds both.
+    # `df1[g] > cap1 and df2[g] > cap2` maps to itself when (df1, cap1) and
+    # (df2, cap2) are exchanged, which is exactly what a swap does.
+    #
+    # Measured (candidate level, three real Greek pairs at production scale):
+    # forward == reverse exactly (Jaccard 1.0000, shared-bigram counts agree
+    # on every pair), and the result is a strict SUPERSET of what the shipped
+    # engine finds in its forward direction — 0 candidates lost on all three
+    # pairs.  The alternatives considered both lose recall: capping from
+    # `min(n1, n2)` drops 44-76% of candidates, and capping the union df drops
+    # 926-4,786 while gaining fewer.  `max_candidates` still bounds the work
+    # that reaches Phase 3, so the extra candidates do not change the runtime
+    # ceiling — they change *which* pairs fill it.
+    df1: Counter = Counter()
+    for gs in grams1:
+        for g in set(gs):
+            df1[g] += 1
+    df_cap1 = max(40, int(0.04 * n1))
+    df_cap2 = max(40, int(0.04 * n2))
     cand: dict[tuple, int] = {}
     for i in range(n1):
         local: dict[int, int] = {}
-        for g in set(_word_ngrams(u1[i][2], wn)):
+        for g in set(grams1[i]):
             posting = inv.get(g)
-            if not posting or len(posting) > df_cap:
+            if not posting:
+                continue
+            if df1[g] > df_cap1 and len(posting) > df_cap2:
                 continue
             for j in posting:
                 local[j] = local.get(j, 0) + 1
         for j, shared in local.items():
             if shared >= min_shared:
                 cand[(i, j)] = shared
-    ranked = sorted(cand.items(), key=lambda kv: kv[1], reverse=True)[:max_candidates]
+    # Deterministic, direction-independent ordering.  `sorted` is stable, so
+    # ties previously broke on `cand`'s insertion order, which depends on the
+    # posting-list layout and therefore on the argument order.  Breaking ties
+    # on (i, j) makes the truncation point reproducible.
+    ranked = sorted(cand.items(), key=lambda kv: (-kv[1], kv[0]))[:max_candidates]
+    cap_hit = len(cand) > max_candidates
 
     vc1: dict[int, dict] = {}
     vc2: dict[int, dict] = {}
@@ -492,6 +662,7 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
 
     meta.update({
         "n_candidates": len(ranked), "n_chosen": len(chosen),
+        "n_candidates_before_cap": len(cand), "cap_hit": cap_hit,
         "vocab_size": len(vocab),
         "mean": round(statistics.fmean(cand_scores), 4) if cand_scores else 0.0,
         "threshold": round(auto, 4), "used_threshold": round(sel, 4),
@@ -520,6 +691,12 @@ def compare_iter(sections1: list[dict], sections2: list[dict],
                 "bridges_i": bridges_i, "bridges_j": bridges_j,
                 "n_blocks": len(raw), "n_chained": len(kept),
                 "matched_words": cnt_i,
+                # FIX (AUDIT finding 11): `cnt_j` was computed on the line
+                # above and thrown away, leaving the j-side count recoverable
+                # only by re-counting the `matched_j` map.  None of the 35,753
+                # released records carries it, so no `gap_j` can be computed
+                # for the archive at all.  It is emitted now.
+                "matched_words_j": cnt_j,
                 "word_range_i": rng_i, "word_range_j": rng_j,
                 "chain_len": chain_len,
                 "snippet_i": snip_i, "snippet_j": snip_j,

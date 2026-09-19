@@ -1,4 +1,5 @@
 corpus/
 *.json
+*.log
 __pycache__/
 *.pyc

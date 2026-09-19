@@ -13,7 +13,33 @@ engine/MANIFEST.sha256` still passes on all 12 listed files, and
 asserts it.
 
 Every finding below is reproduced by `python3 -m unittest discover -s tests`
-(33 tests, ~50 s, standard library only).
+(47 tests, ~60 s, standard library only).
+
+> **Fix status (added after the first pass).** Findings 1, 4, 5, 11, 12, 14 and
+> 15 are now **implemented** in a parallel `_v2` pipeline —
+> `engine/flame/flame_pure_v2.py`, `engine/flame/bpe_pure_v2.py`,
+> `scripts/find_text_reuse_v2.py`, `scripts/filter_by_wp_v2.py`,
+> `scripts/demo_v2.py`. See [`PIPELINE_V2.md`](PIPELINE_V2.md) for how to run it
+> and what each fix cost. The frozen pipeline is untouched and still produces
+> the reported numbers; the v2 pipeline writes to `logs/v2/` and
+> `logs/clean_by_wp_v2/`. The paper's figures move only when the 406-pair sweep
+> is re-run with it, which needs the corpus that is not in this release.
+>
+> **Documentation edited 2026-09-19.** `README.md` and `engine/README.md` carried
+> statements this audit falsified (findings 1, 2, 12 and the "single chain of 57"
+> figure); they are corrected in place and marked *(corrected 2026-09-19)*. Both
+> `MANIFEST.sha256` files were regenerated — same file lists, exactly one changed
+> hash each. Pre-edit values, for audit:
+>
+> | file | before | after |
+> |---|---|---|
+> | `README.md` | `112f57b696396ada…` | `6830625c9bdeeba4…` |
+> | `engine/README.md` | `fa0bdecaf613bf76…` | `823c0e115c8b0496…` |
+> | `MANIFEST.sha256` | `7e2dc7ff6db51901…` | regenerated (31 files, 1 hash changed) |
+> | `engine/MANIFEST.sha256` | `334f358bab2e103c…` | regenerated (12 files, 1 hash changed) |
+>
+> No data file, no result file and no paper draft was edited. The replacement §4
+> still sits beside the drafts rather than over them.
 
 ---
 
@@ -138,25 +164,66 @@ above are exact rather than re-run approximations.
 
 ## Deliverables and their status
 
-### Applied
+### Implemented (second pass)
 
-* **`tests/test_flame.py`** — 33 tests, green against the unmodified engine.
+The fixed pipeline. Full description, costs and measured verification in
+[`PIPELINE_V2.md`](PIPELINE_V2.md).
+
+| finding | fix | verified by |
+|---|---|---|
+| 4 — direction dependence | `flame_pure_v2`: each side capped by its own unit count, a bigram dropped only when over-frequent on **both**. Candidate ties break on `(i, j)`. | forward == reverse exactly on all three real pairs (Jaccard 1.0000, shared counts agreeing), and a **strict superset** of the frozen engine's forward direction — 0 candidates lost. `test_FIX_candidate_retrieval_is_symmetric` |
+| 5 — score not cross-pair comparable | `flame_pure_v2.build_corpus_index()` + `compare_iter(corpus_index=…)`: one vocabulary, hash base and IDF for the whole corpus. `filter_by_wp_v2` reads the run's provenance and refuses an absolute gate on per-call scores. | the same unit pair scores 0.3069 under four different call compositions where the per-call path gives four different values; the unit's TF-IDF vector is identical between calls. `test_FIX_corpus_index_makes_score_call_invariant` |
+| 12 — Proclus apparatus | `find_text_reuse_v2.clean_text()` drops bare numerals and Latin-script tokens from **majority-Greek** segments only. | 0 numerals and 0 Latin tokens remain; 95 → 92 windows; the strongest lemmatic record 90 → 104 matched words, 0.4373 → 0.5708. `test_FIX_apparatus_tokens_are_stripped`, `test_FIX_windows_rephase_under_the_strip` |
+| 11 — `cnt_j` discarded | emitted as `matched_words_j`. | `test_FIX_matched_words_j_is_emitted` |
+| 14 — silent clamping / truncation | `meta.clamped`, `cap_hit`, `n_candidates_before_cap`, `units_truncated`, `idf_scope`, `bpe_trained`; the harness turns them into warnings and writes a `*.meta.json` provenance sidecar. | `test_FIX_silent_behaviour_is_reported`, `test_FIX_cap_hit_is_reported` |
+| 15 — `bpe_pure` load order | `bpe_pure_v2` calls `load()` before reading `_RANKS`. | `test_FIX_bpe_load_order` |
+| 1, 2 — wrong documentation | corrected in `engine/README.md` and `README.md` in place. | — |
+
+**What was deliberately not changed, and is enforced as such:** the Levenshtein
+predicate, the block builder, the `core >= ngram` filter, the emission order and
+the windowing. `test_matching_stage_is_untouched_by_the_fork` compares the two
+engine modules function by function at AST level and requires **exactly one** to
+differ (`compare_iter`) plus exactly one new one (`build_corpus_index`). On the
+demo pair the v2 engine reproduces the frozen engine's five records exactly —
+same labels, chains, matched words and scores — so `scripts/demo_v2.py`'s
+mode-[B] differences are attributable to the cleaning alone.
+
+Also unchanged on purpose: the clamping itself (changing it would change
+results) and `max_candidates`' default of 4000 — the production run used 1000,
+and the right move is to state the value, not to pick a new one silently.
+
+**Still not possible from this release:** re-running the 406-pair sweep (the
+corpus is TLG-derived and absent), fixing the apparatus at its source (the
+corpus builder is excluded by policy), and splitting the `ancient_classical` era
+bucket (needs `corpus_manifest.yaml`).
+
+### Applied (first pass)
+
+* **`tests/test_flame.py`** — 47 tests, green against the unmodified engine.
   `test_DOC_*` names every test whose recorded behaviour contradicts a
   docstring, the engine README or the paper draft. The two real guarantees
   (length-prune soundness, block algebra) have their own property tests.
-* **`engine/flame/flame_pure_v2.py`** — class A, the docstring corrections that
-  could not go into the frozen file. **Executable code is untouched**:
-  `test_v2_is_ast_identical_to_the_frozen_engine` compares the two modules'
-  ASTs with docstrings stripped, and `test_v2_reproduces_the_demo_records_exactly`
-  replays the demo through it. **No reported metric changes.** Nothing imports
-  it; `demo.py` and both harness copies still load `flame_pure`.
-  Corrected there: the module docstring (what Phase 1 does and does not do, the
-  direction dependence, the `\b\w+\b` branch equivalence, the core-vs-fuzz
-  attribution), `levenshtein_ratio` (real formula, 0.5 floor, what 0.75 admits),
-  `_idf` (per-call normalization), `_units` (`CAP_WORDS`, BPE independence) and
-  `compare_iter` (emission order, silent clamping, the unused auto-threshold).
+* **`engine/flame/flame_pure_v2.py`** — the corrected docstrings that could not
+  go into the frozen file: the module docstring (what Phase 1 does and does not
+  do, the direction dependence, the `\b\w+\b` branch equivalence, the
+  core-vs-fuzz attribution), `levenshtein_ratio` (real formula, 0.5 floor, what
+  0.75 admits), `_idf` (per-call normalization), `_units` (`CAP_WORDS`, BPE
+  independence) and `compare_iter` (emission order, silent clamping, the unused
+  auto-threshold). *In the second pass this file became the fixed engine as
+  well — see "Implemented" above. It is still not imported by anything in the
+  release: `demo.py` and both harness copies load `flame_pure`.*
 * **`docs/Section4_FLAME_rewritten.md`** — §4 rewritten from the measured
   behaviour, placed beside the old text, not over it.
+
+### The first pass's patch set — now superseded
+
+The diffs in `docs/patches/` were written before the fixes were implemented.
+They are kept because each is a minimal, reviewable statement of one change, and
+because two of them record an option the implementation did **not** take. Where
+a patch and the v2 pipeline disagree, the v2 pipeline is the measured answer —
+in particular **C1's `min(n1,n2)` symmetrization was rejected**: it is
+direction-free but drops 44–76% of candidates, where the implemented
+per-side-cap version drops none. See `docs/patches/README.md`.
 
 ### Proposed, not applied — class B (additive)
 
