@@ -13,3 +13,13 @@ tests/measurements/
 # A javított szűrő újraszámolt kimenete — a szkript futtatásával bármikor
 # előáll, l. PIPELINE_V2.md.
 logs/clean_by_wp_v2/
+
+# Rejtett könyvtárak (.claude/, .venv/, .idea/, .vscode/, .pytest_cache/ …).
+# A záró `/` miatt CSAK könyvtárakra vonatkozik: a `.gitignore` fájlok
+# követve maradnak, különben a szabályok nem jutnának el a klónba.
+.*/
+
+# Claude-specifikus munkakönyvtárak és jegyzetek, rejtett néven és anélkül is.
+.claude*
+claude/
+CLAUDE.md
